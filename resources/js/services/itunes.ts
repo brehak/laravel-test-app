@@ -56,6 +56,7 @@ interface ItunesRawResult {
     collectionName?: string;
     artworkUrl100?: string;
     releaseDate?: string;
+    trackCount?: number;
 }
 
 // ----- Public functions -------------------------------------------------
@@ -104,6 +105,15 @@ export async function fetchAlbumsByArtist(artistId: number): Promise<ItunesAlbum
             .filter((r): r is ItunesRawResult & ItunesAlbum =>
                 typeof r.collectionId === 'number' && typeof r.collectionName === 'string',
             )
+            // Drop singles and EPs: iTunes suffixes their titles with "- Single"
+            // or "- EP", and they carry very few tracks. Excluded if either
+            // signal is present.
+            .filter((r) => {
+                const name = r.collectionName.toLowerCase();
+                if (name.includes('- single') || name.includes('- ep')) return false;
+                if (typeof r.trackCount === 'number' && r.trackCount < 3) return false;
+                return true;
+            })
             .map((r) => ({
                 collectionId: r.collectionId,
                 collectionName: r.collectionName,

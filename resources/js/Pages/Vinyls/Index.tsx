@@ -1,7 +1,9 @@
+import { router } from '@inertiajs/react';
 import { Badge, Button, Card, Heading, Icon, Text } from '@particle-academy/react-fancy';
 import { useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
+import { EditVinylModal } from './EditVinylModal';
 
 type Vinyl = {
     id: number;
@@ -25,7 +27,31 @@ function conditionColor(condition: string): 'emerald' | 'amber' | 'orange' | 'ro
     return 'zinc';
 }
 
-function VinylCard({ vinyl }: { vinyl: Vinyl }) {
+function VinylCard({
+    vinyl,
+    onEdit,
+}: {
+    vinyl: Vinyl;
+    onEdit: (vinyl: Vinyl) => void;
+}) {
+    // Two-step delete: first click arms the inline "Are you sure?" confirm,
+    // second click actually fires the request.
+    const [confirming, setConfirming] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const onDeleteClick = () => {
+        // First click arms the confirm; second click actually deletes.
+        if (!confirming) {
+            setConfirming(true);
+            return;
+        }
+        setDeleting(true);
+        router.delete(`/vinyls/${vinyl.id}`, {
+            preserveScroll: true,
+            onFinish: () => setDeleting(false),
+        });
+    };
+
     return (
         <Card
             variant="elevated"
@@ -55,6 +81,40 @@ function VinylCard({ vinyl }: { vinyl: Vinyl }) {
                         </Badge>
                     </div>
                 )}
+
+                {/* Edit / delete controls — surface on hover (and focus) */}
+                <div className="absolute left-2 top-2 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+                    <button
+                        type="button"
+                        onClick={() => onEdit(vinyl)}
+                        aria-label={`Edit ${vinyl.title}`}
+                        className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300"
+                    >
+                        <Icon name="pencil" size="sm" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDeleteClick}
+                        onBlur={() => setConfirming(false)}
+                        disabled={deleting}
+                        aria-label={confirming ? `Confirm delete ${vinyl.title}` : `Delete ${vinyl.title}`}
+                        className={
+                            confirming
+                                ? 'grid h-8 place-items-center rounded-md bg-rose-600 px-2 text-xs font-medium text-white transition hover:bg-rose-500 disabled:opacity-60'
+                                : 'grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-rose-600/90 hover:text-white'
+                        }
+                    >
+                        {confirming ? (
+                            deleting ? (
+                                <Icon name="loader-2" size="sm" className="animate-spin" />
+                            ) : (
+                                'Sure?'
+                            )
+                        ) : (
+                            <Icon name="trash-2" size="sm" />
+                        )}
+                    </button>
+                </div>
 
                 {/* Warm gradient scrim so overlaid text stays legible */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
@@ -114,6 +174,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 export default function Index({ vinyls }: Props) {
     const hasRecords = vinyls.length > 0;
     const [addOpen, setAddOpen] = useState(false);
+    const [editing, setEditing] = useState<Vinyl | null>(null);
 
     return (
         <AppLayout title="My Collection">
@@ -137,7 +198,7 @@ export default function Index({ vinyls }: Props) {
                 {hasRecords ? (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {vinyls.map((vinyl) => (
-                            <VinylCard key={vinyl.id} vinyl={vinyl} />
+                            <VinylCard key={vinyl.id} vinyl={vinyl} onEdit={setEditing} />
                         ))}
                     </div>
                 ) : (
@@ -146,6 +207,11 @@ export default function Index({ vinyls }: Props) {
             </div>
 
             <AddVinylModal open={addOpen} onClose={() => setAddOpen(false)} />
+            <EditVinylModal
+                open={editing !== null}
+                vinyl={editing}
+                onClose={() => setEditing(null)}
+            />
         </AppLayout>
     );
 }
