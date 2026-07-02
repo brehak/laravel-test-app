@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
-import { Badge, Button, Card, Heading, Icon, Text } from '@particle-academy/react-fancy';
-import { useState } from 'react';
+import { Badge, Button, Card, Heading, Icon, Select, Text } from '@particle-academy/react-fancy';
+import { useMemo, useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
 import { EditVinylModal } from './EditVinylModal';
@@ -16,6 +16,72 @@ type Vinyl = {
 };
 
 type Props = { vinyls: Vinyl[] };
+
+/** Sort modes. "default" preserves the incoming (recently-added) order. */
+type SortKey = 'default' | 'title' | 'artist' | 'year';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+    { value: 'default', label: 'Recently added' },
+    { value: 'title', label: 'Title (A–Z)' },
+    { value: 'artist', label: 'Artist (A–Z)' },
+    { value: 'year', label: 'Year (newest)' },
+];
+
+/** Sort + genre filter controls. Purely presentational — all state lives in the parent. */
+function FilterBar({
+    sort,
+    onSortChange,
+    genres,
+    activeGenre,
+    onGenreChange,
+}: {
+    sort: SortKey;
+    onSortChange: (sort: SortKey) => void;
+    genres: string[];
+    activeGenre: string | null;
+    onGenreChange: (genre: string | null) => void;
+}) {
+    const chip = (label: string, selected: boolean, onClick: () => void) => (
+        <button
+            key={label}
+            type="button"
+            onClick={onClick}
+            aria-pressed={selected}
+            className={
+                selected
+                    ? 'rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300 transition'
+                    : 'rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs font-medium text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200'
+            }
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <div className="flex flex-col gap-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+            {genres.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    {chip('All', activeGenre === null, () => onGenreChange(null))}
+                    {genres.map((genre) => chip(genre, activeGenre === genre, () => onGenreChange(genre)))}
+                </div>
+            )}
+
+            <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+                <Text as="label" size="xs" color="muted" className="shrink-0 uppercase tracking-wide">
+                    Sort
+                </Text>
+                <Select
+                    size="sm"
+                    value={sort}
+                    list={SORT_OPTIONS}
+                    onValueChange={(value) => onSortChange(value as SortKey)}
+                    aria-label="Sort collection"
+                    className="min-w-40"
+                />
+            </div>
+        </div>
+    );
+}
 
 /** Map a free-text condition grade to a warm-palette badge color. */
 function conditionColor(condition: string): 'emerald' | 'amber' | 'orange' | 'rose' | 'zinc' {
@@ -56,7 +122,7 @@ function VinylCard({
         <Card
             variant="elevated"
             padding="none"
-            className="group overflow-hidden border-zinc-800/60 bg-zinc-900 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40"
+            className="group overflow-hidden border-zinc-800/60 bg-zinc-900 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-black/50"
         >
             {/* Cover art carries the visual weight */}
             <div className="relative aspect-square overflow-hidden bg-zinc-950">
@@ -65,7 +131,7 @@ function VinylCard({
                         src={vinyl.image}
                         alt={`${vinyl.title} by ${vinyl.artist}`}
                         loading="lazy"
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
                     />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 via-zinc-900 to-black text-zinc-600">
@@ -175,6 +241,43 @@ export default function Index({ vinyls }: Props) {
     const hasRecords = vinyls.length > 0;
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<Vinyl | null>(null);
+    const [sort, setSort] = useState<SortKey>('default');
+    const [activeGenre, setActiveGenre] = useState<string | null>(null);
+
+    // Every unique genre across the collection, alphabetized for the filter chips.
+    const genres = useMemo(
+        () => Array.from(new Set(vinyls.flatMap((vinyl) => vinyl.genre ?? []))).sort((a, b) => a.localeCompare(b)),
+        [vinyls],
+    );
+
+    // Derive the visible list from the prop — filter then sort, never mutating `vinyls`.
+    const visible = useMemo(() => {
+        const filtered = activeGenre
+            ? vinyls.filter((vinyl) => vinyl.genre?.includes(activeGenre))
+            : vinyls;
+
+        if (sort === 'default') return filtered;
+
+        const sorted = [...filtered];
+        if (sort === 'title') {
+            sorted.sort((a, b) => a.title.localeCompare(b.title));
+        } else if (sort === 'artist') {
+            sorted.sort((a, b) => a.artist.localeCompare(b.artist));
+        } else if (sort === 'year') {
+            // Newest first; records without a year sink to the bottom.
+            sorted.sort((a, b) => (Number(b.year) || -Infinity) - (Number(a.year) || -Infinity));
+        }
+        return sorted;
+    }, [vinyls, activeGenre, sort]);
+
+    // Stats reflect the active filter: "12 of 42 records" when narrowed, otherwise
+    // the full "42 records · 8 genres" summary.
+    const genreLabel = genres.length > 0 ? `${genres.length} genre${genres.length === 1 ? '' : 's'}` : null;
+    const statsText = !hasRecords
+        ? 'Your record shelf is waiting.'
+        : activeGenre
+          ? `${visible.length} of ${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`
+          : [`${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`, genreLabel].filter(Boolean).join(' · ');
 
     return (
         <AppLayout title="My Collection">
@@ -184,9 +287,7 @@ export default function Index({ vinyls }: Props) {
                         My Collection
                     </Heading>
                     <Text as="p" size="sm" color="muted" className="mt-1">
-                        {hasRecords
-                            ? `${vinyls.length} record${vinyls.length === 1 ? '' : 's'} on the shelf`
-                            : 'Your record shelf is waiting.'}
+                        {statsText}
                     </Text>
                 </div>
                 <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
@@ -194,15 +295,40 @@ export default function Index({ vinyls }: Props) {
                 </Button>
             </div>
 
-            <div className="mt-8">
-                {hasRecords ? (
+            {hasRecords && (
+                <div className="mt-6">
+                    <FilterBar
+                        sort={sort}
+                        onSortChange={setSort}
+                        genres={genres}
+                        activeGenre={activeGenre}
+                        onGenreChange={setActiveGenre}
+                    />
+                </div>
+            )}
+
+            <div className="mt-6">
+                {!hasRecords ? (
+                    <EmptyState onAdd={() => setAddOpen(true)} />
+                ) : visible.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {vinyls.map((vinyl) => (
+                        {visible.map((vinyl) => (
                             <VinylCard key={vinyl.id} vinyl={vinyl} onEdit={setEditing} />
                         ))}
                     </div>
                 ) : (
-                    <EmptyState onAdd={() => setAddOpen(true)} />
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
+                        <Text as="p" size="sm" color="muted">
+                            No records match{activeGenre ? ` "${activeGenre}"` : ''}.
+                        </Text>
+                        <button
+                            type="button"
+                            onClick={() => setActiveGenre(null)}
+                            className="mt-2 text-xs font-medium text-amber-400 transition hover:text-amber-300"
+                        >
+                            Clear filter
+                        </button>
+                    </div>
                 )}
             </div>
 
