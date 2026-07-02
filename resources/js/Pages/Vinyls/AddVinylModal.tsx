@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { Badge, Button, Field, Icon, Input, Modal, Select, Text } from '@particle-academy/react-fancy';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     fetchAlbumsByArtist,
     getHighResArtwork,
@@ -36,12 +36,20 @@ function yearOf(releaseDate: string): string {
     return match ? match[1] : '';
 }
 
+/** Minimal shape needed to spot a likely duplicate in the existing collection. */
+export type ExistingVinyl = {
+    title: string;
+    artist: string;
+};
+
 type Props = {
     open: boolean;
     onClose: () => void;
+    /** The user's current collection, used for gentle duplicate detection. */
+    existingVinyls?: ExistingVinyl[];
 };
 
-export function AddVinylModal({ open, onClose }: Props) {
+export function AddVinylModal({ open, onClose, existingVinyls = [] }: Props) {
     // --- iTunes search state -------------------------------------------
     const [term, setTerm] = useState('');
     const [artists, setArtists] = useState<ItunesArtist[]>([]);
@@ -149,6 +157,23 @@ export function AddVinylModal({ open, onClose }: Props) {
     const selectedAlbum = albums.find((a) => a.collectionId === selectedAlbumId) ?? null;
 
     const canSave = form.title.trim().length > 0 && form.artist.trim().length > 0;
+
+    // Gentle duplicate detection: once both title + artist are filled (via iTunes
+    // autofill or manual entry), look for an existing record with the same
+    // title AND artist, compared case-insensitively and trimmed. This only
+    // warns — it never blocks saving, since collectors may own multiple pressings.
+    const duplicate = useMemo(() => {
+        const title = form.title.trim().toLowerCase();
+        const artist = form.artist.trim().toLowerCase();
+        if (!title || !artist) return null;
+        return (
+            existingVinyls.find(
+                (v) =>
+                    v.title.trim().toLowerCase() === title &&
+                    v.artist.trim().toLowerCase() === artist,
+            ) ?? null
+        );
+    }, [form.title, form.artist, existingVinyls]);
 
     const save = () => {
         if (!canSave || saving) return;
@@ -404,13 +429,29 @@ export function AddVinylModal({ open, onClose }: Props) {
                 </div>
 
                 {/* Footer */}
-                <div className="flex shrink-0 justify-end gap-2 border-t border-zinc-800 px-6 py-4">
-                    <Button variant="ghost" onClick={close} disabled={saving}>
-                        Cancel
-                    </Button>
-                    <Button color="amber" icon="plus" onClick={save} loading={saving} disabled={!canSave}>
-                        Save Vinyl
-                    </Button>
+                <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-800 px-6 py-4">
+                    {/* Gentle duplicate warning — never blocks saving. */}
+                    {duplicate && (
+                        <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-amber-200">
+                            <Icon name="info" size="sm" className="mt-0.5 shrink-0 text-amber-400" />
+                            <Text as="p" size="sm" className="text-amber-200">
+                                You may already own this:{' '}
+                                <span className="font-medium text-amber-100">{duplicate.title}</span>
+                                {' '}by{' '}
+                                <span className="font-medium text-amber-100">{duplicate.artist}</span>. You can still
+                                save it if you own multiple pressings.
+                            </Text>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={close} disabled={saving}>
+                            Cancel
+                        </Button>
+                        <Button color="amber" icon="plus" onClick={save} loading={saving} disabled={!canSave}>
+                            Save Vinyl
+                        </Button>
+                    </div>
                 </div>
             </div>
         </Modal>

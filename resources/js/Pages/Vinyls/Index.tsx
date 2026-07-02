@@ -1,9 +1,10 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Badge, Button, Card, Heading, Icon, Select, Text } from '@particle-academy/react-fancy';
 import { useMemo, useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
 import { EditVinylModal } from './EditVinylModal';
+import { VinylDetailModal } from './VinylDetailModal';
 
 type Vinyl = {
     id: number;
@@ -84,7 +85,7 @@ function FilterBar({
 }
 
 /** Map a free-text condition grade to a warm-palette badge color. */
-function conditionColor(condition: string): 'emerald' | 'amber' | 'orange' | 'rose' | 'zinc' {
+export function conditionColor(condition: string): 'emerald' | 'amber' | 'orange' | 'rose' | 'zinc' {
     const c = condition.toLowerCase();
     if (c.includes('mint') || c.includes('new') || c.includes('sealed')) return 'emerald';
     if (c.includes('very good') || c.startsWith('vg')) return 'amber';
@@ -96,16 +97,21 @@ function conditionColor(condition: string): 'emerald' | 'amber' | 'orange' | 'ro
 function VinylCard({
     vinyl,
     onEdit,
+    onOpen,
 }: {
     vinyl: Vinyl;
     onEdit: (vinyl: Vinyl) => void;
+    onOpen: (vinyl: Vinyl) => void;
 }) {
     // Two-step delete: first click arms the inline "Are you sure?" confirm,
     // second click actually fires the request.
     const [confirming, setConfirming] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const onDeleteClick = () => {
+    const onDeleteClick = (e: React.MouseEvent) => {
+        // Don't let a click on the delete control bubble up to the card (which
+        // would open the detail view).
+        e.stopPropagation();
         // First click arms the confirm; second click actually deletes.
         if (!confirming) {
             setConfirming(true);
@@ -122,7 +128,17 @@ function VinylCard({
         <Card
             variant="elevated"
             padding="none"
-            className="group overflow-hidden border-zinc-800/60 bg-zinc-900 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-black/50"
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${vinyl.title} by ${vinyl.artist}`}
+            onClick={() => onOpen(vinyl)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(vinyl);
+                }
+            }}
+            className="group cursor-pointer overflow-hidden border-zinc-800/60 bg-zinc-900 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-black/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
             {/* Cover art carries the visual weight */}
             <div className="relative aspect-square overflow-hidden bg-zinc-950">
@@ -152,7 +168,11 @@ function VinylCard({
                 <div className="absolute left-2 top-2 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
                     <button
                         type="button"
-                        onClick={() => onEdit(vinyl)}
+                        onClick={(e) => {
+                            // Keep the edit control from also opening the detail view.
+                            e.stopPropagation();
+                            onEdit(vinyl);
+                        }}
                         aria-label={`Edit ${vinyl.title}`}
                         className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300"
                     >
@@ -241,6 +261,7 @@ export default function Index({ vinyls }: Props) {
     const hasRecords = vinyls.length > 0;
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<Vinyl | null>(null);
+    const [detailing, setDetailing] = useState<Vinyl | null>(null);
     const [sort, setSort] = useState<SortKey>('default');
     const [activeGenre, setActiveGenre] = useState<string | null>(null);
 
@@ -290,9 +311,18 @@ export default function Index({ vinyls }: Props) {
                         {statsText}
                     </Text>
                 </div>
-                <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
-                    Add Vinyl
-                </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                    {hasRecords && (
+                        <Link href="/vinyls/stats">
+                            <Button variant="ghost" icon="chart-pie">
+                                Stats
+                            </Button>
+                        </Link>
+                    )}
+                    <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
+                        Add Vinyl
+                    </Button>
+                </div>
             </div>
 
             {hasRecords && (
@@ -313,7 +343,7 @@ export default function Index({ vinyls }: Props) {
                 ) : visible.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {visible.map((vinyl) => (
-                            <VinylCard key={vinyl.id} vinyl={vinyl} onEdit={setEditing} />
+                            <VinylCard key={vinyl.id} vinyl={vinyl} onEdit={setEditing} onOpen={setDetailing} />
                         ))}
                     </div>
                 ) : (
@@ -332,11 +362,21 @@ export default function Index({ vinyls }: Props) {
                 )}
             </div>
 
-            <AddVinylModal open={addOpen} onClose={() => setAddOpen(false)} />
+            <AddVinylModal open={addOpen} onClose={() => setAddOpen(false)} existingVinyls={vinyls} />
             <EditVinylModal
                 open={editing !== null}
                 vinyl={editing}
                 onClose={() => setEditing(null)}
+            />
+            <VinylDetailModal
+                open={detailing !== null}
+                vinyl={detailing}
+                onClose={() => setDetailing(null)}
+                onEdit={(vinyl) => {
+                    // Reuse the existing edit flow: swap the detail view for the edit modal.
+                    setDetailing(null);
+                    setEditing(vinyl);
+                }}
             />
         </AppLayout>
     );

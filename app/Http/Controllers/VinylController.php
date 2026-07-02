@@ -21,6 +21,59 @@ class VinylController extends Controller
     }
 
     /**
+     * Display aggregate statistics for the authenticated user's collection.
+     */
+    public function stats(): Response
+    {
+        // Scope to the current user, same as every other action here.
+        $vinyls = auth()->user()->vinyls()->get();
+
+        // Top artists: how many records per artist, most-collected first.
+        $topArtists = $vinyls
+            ->groupBy('artist')
+            ->map(fn ($records, $artist) => [
+                'artist' => $artist,
+                'count' => $records->count(),
+            ])
+            ->sortByDesc('count')
+            ->values()
+            ->take(10);
+
+        // Decade breakdown derived from the free-text `year` field. Anything
+        // that doesn't parse to a 4-digit year is bucketed as "Unknown".
+        $byDecade = $vinyls
+            ->groupBy(function ($vinyl) {
+                if (! preg_match('/\d{4}/', (string) $vinyl->year, $m)) {
+                    return 'Unknown';
+                }
+
+                return (intdiv((int) $m[0], 10) * 10).'s';
+            })
+            ->map->count()
+            // Sort chronologically; "Unknown" sinks to the end.
+            ->sortKeysUsing(fn ($a, $b) => ($a === 'Unknown' ? PHP_INT_MAX : (int) $a)
+                <=> ($b === 'Unknown' ? PHP_INT_MAX : (int) $b))
+            ->map(fn ($count, $decade) => ['decade' => $decade, 'count' => $count])
+            ->values();
+
+        // Genre distribution: flatten every record's genre array and tally.
+        $byGenre = $vinyls
+            ->flatMap(fn ($vinyl) => $vinyl->genre ?? [])
+            ->countBy()
+            ->sortDesc()
+            ->map(fn ($count, $genre) => ['genre' => $genre, 'count' => $count])
+            ->values();
+
+        return Inertia::render('Vinyls/Stats', [
+            'totalRecords' => $vinyls->count(),
+            'uniqueArtists' => $vinyls->pluck('artist')->unique()->count(),
+            'topArtists' => $topArtists,
+            'byDecade' => $byDecade,
+            'byGenre' => $byGenre,
+        ]);
+    }
+
+    /**
      * Store a new vinyl in the authenticated user's collection.
      */
     public function store(Request $request): RedirectResponse
