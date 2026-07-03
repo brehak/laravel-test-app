@@ -87,6 +87,8 @@ class VinylController extends Controller
             'year' => ['nullable', 'string', 'max:255'],
             'condition' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:32'],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         // Create through the relationship so user_id is set from the
@@ -113,6 +115,8 @@ class VinylController extends Controller
             'year' => ['nullable', 'string', 'max:255'],
             'condition' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:32'],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $vinyl->update($validated);

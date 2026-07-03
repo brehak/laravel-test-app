@@ -15,6 +15,8 @@ type Vinyl = {
     year: string | null;
     condition: string | null;
     color: string | null;
+    rating: number | null;
+    notes: string | null;
 };
 
 /** Neutral fallback disc color when a record has none stored. */

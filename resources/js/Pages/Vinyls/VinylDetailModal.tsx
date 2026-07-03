@@ -16,6 +16,8 @@ export type DetailVinyl = {
     year: string | null;
     condition: string | null;
     color: string | null;
+    rating: number | null;
+    notes: string | null;
 };
 
 type Props = {
@@ -61,6 +63,22 @@ function DiscSwatch({ color }: { color: string }) {
             <Text as="span" size="xs" color="muted" className="font-mono uppercase tracking-wide">
                 {color}
             </Text>
+        </span>
+    );
+}
+
+/** Five stars with the first `value` filled — read-only rating display. */
+function StarRating({ value }: { value: number }) {
+    return (
+        <span className="inline-flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Icon
+                    key={star}
+                    name="star"
+                    size="sm"
+                    className={star <= value ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'}
+                />
+            ))}
         </span>
     );
 }
@@ -177,9 +195,25 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                             <MetaRow label="Disc">
                                 <DiscSwatch color={vinyl.color || DEFAULT_DISC_COLOR} />
                             </MetaRow>
+
+                            <MetaRow label="Rating">
+                                {vinyl.rating != null && <StarRating value={vinyl.rating} />}
+                            </MetaRow>
                         </div>
                     </div>
                     </div>
+
+                    {/* Personal notes — only shown when the record has any. */}
+                    {vinyl.notes && (
+                        <div className="mt-6 border-t border-zinc-800/70 pt-4">
+                            <Text as="span" size="xs" color="muted" className="uppercase tracking-wide">
+                                Notes
+                            </Text>
+                            <Text as="p" size="sm" className="mt-1 whitespace-pre-wrap text-zinc-300">
+                                {vinyl.notes}
+                            </Text>
+                        </div>
+                    )}
 
                     {/* Tracklist — reserved slot; the list itself lands in a follow-up. */}
                     <div className="mt-6 border-t border-zinc-800/70 pt-4">
