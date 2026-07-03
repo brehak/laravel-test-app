@@ -19,8 +19,11 @@ class VinylController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         // Always scope to the current user's records; the search only ever
-        // narrows within that relationship, never queries outside it.
+        // narrows within that relationship, never queries outside it. The
+        // collection page shows owned records only — wishlist items live on
+        // their own page.
         $vinyls = auth()->user()->vinyls()
+            ->where('owned', true)
             ->when($search !== '', function ($query) use ($search) {
                 // Case-insensitive partial match on title OR artist. LOWER()
                 // on both sides keeps it portable across DB drivers.
@@ -38,6 +41,22 @@ class VinylController extends Controller
             'vinyls' => $vinyls,
             // Echo the current term back so the input can stay in sync.
             'search' => $search,
+        ]);
+    }
+
+    /**
+     * Display the authenticated user's wishlist — records they want but don't
+     * yet own. Scoped to the current user, exactly like index().
+     */
+    public function wishlist(): Response
+    {
+        $vinyls = auth()->user()->vinyls()
+            ->where('owned', false)
+            ->latest()
+            ->get();
+
+        return Inertia::render('Vinyls/Wishlist', [
+            'vinyls' => $vinyls,
         ]);
     }
 
@@ -110,7 +129,13 @@ class VinylController extends Controller
             'color' => ['nullable', 'string', 'max:32'],
             'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Optional so records can be added straight to the wishlist; when
+            // omitted the record lands in the owned collection.
+            'owned' => ['boolean'],
         ]);
+
+        // Default to owned when the client doesn't specify.
+        $validated['owned'] = $validated['owned'] ?? true;
 
         // Create through the relationship so user_id is set from the
         // authenticated user — it can never be supplied by the request.
@@ -154,6 +179,20 @@ class VinylController extends Controller
         abort_if($vinyl->user_id !== auth()->id(), 403);
 
         $vinyl->delete();
+
+        return back();
+    }
+
+    /**
+     * Move a record between the collection and the wishlist by flipping its
+     * owned flag. Scoped to the current user, same guard as update/destroy.
+     */
+    public function toggleOwned(Vinyl $vinyl): RedirectResponse
+    {
+        // Ensure the record belongs to the current user before flipping.
+        abort_if($vinyl->user_id !== auth()->id(), 403);
+
+        $vinyl->update(['owned' => ! $vinyl->owned]);
 
         return back();
     }

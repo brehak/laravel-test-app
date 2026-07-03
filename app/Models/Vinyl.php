@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['title', 'artist', 'image', 'genre', 'year', 'condition', 'color', 'rating', 'notes'])]
+#[Fillable(['title', 'artist', 'image', 'genre', 'year', 'condition', 'color', 'rating', 'notes', 'owned'])]
 class Vinyl extends Model
 {
     /**
@@ -18,6 +18,7 @@ class Vinyl extends Model
     {
         return [
             'genre' => 'array',
+            'owned' => 'boolean',
         ];
     }
 

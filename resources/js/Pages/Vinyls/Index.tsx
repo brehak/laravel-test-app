@@ -243,6 +243,18 @@ function VinylCard({
     // second click actually fires the request.
     const [confirming, setConfirming] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [moving, setMoving] = useState(false);
+
+    // Move this record out of the collection and onto the wishlist by flipping
+    // its owned flag. The list re-fetches, so the card drops away on success.
+    const onMoveToWishlist = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMoving(true);
+        router.patch(`/vinyls/${vinyl.id}/toggle-owned`, {}, {
+            preserveScroll: true,
+            onFinish: () => setMoving(false),
+        });
+    };
 
     const onDeleteClick = (e: React.MouseEvent) => {
         // Don't let a click on the delete control bubble up to the card (which
@@ -318,6 +330,16 @@ function VinylCard({
                         className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300"
                     >
                         <Icon name="pencil" size="sm" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onMoveToWishlist}
+                        disabled={moving}
+                        aria-label={`Move ${vinyl.title} to wishlist`}
+                        title="Move to wishlist"
+                        className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300 disabled:opacity-60"
+                    >
+                        <Icon name={moving ? 'loader-2' : 'bookmark'} size="sm" className={moving ? 'animate-spin' : undefined} />
                     </button>
                     <button
                         type="button"
@@ -514,6 +536,11 @@ export default function Index({ vinyls, search }: Props) {
                     </Text>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                    <Link href="/vinyls/wishlist">
+                        <Button variant="ghost" icon="bookmark">
+                            Wishlist
+                        </Button>
+                    </Link>
                     {hasRecords && (
                         <Link href="/vinyls/stats">
                             <Button variant="ghost" icon="chart-pie">
