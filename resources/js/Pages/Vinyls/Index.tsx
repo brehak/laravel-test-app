@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { Badge, Button, Card, Heading, Icon, Text } from '@particle-academy/react-fancy';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
 import { EditVinylModal } from './EditVinylModal';
@@ -277,6 +277,58 @@ export default function Index({ vinyls, search }: Props) {
         setQuery('');
     };
 
+    // "Surprise Me" — pick a random record and open its detail view, with a
+    // brief cover-shuffle flourish first. We pull from what the user is actually
+    // looking at (the filtered `visible` set), falling back to the full
+    // collection when nothing matches the current filters.
+    const surprisePool = visible.length > 0 ? visible : vinyls;
+    const [surprising, setSurprising] = useState(false);
+    const [spinCover, setSpinCover] = useState<Vinyl | null>(null);
+    // Track every timer so we can tear them down if the component unmounts mid-spin.
+    const spinTimers = useRef<number[]>([]);
+
+    const surpriseMe = () => {
+        if (surprising || surprisePool.length === 0) return;
+
+        const pick = surprisePool[Math.floor(Math.random() * surprisePool.length)];
+        setSurprising(true);
+        setSpinCover(surprisePool[Math.floor(Math.random() * surprisePool.length)]);
+
+        // Rapidly flash a handful of random covers ("spinning"), then land on the
+        // final pick and open its detail view. ~1.3s total — quick and smooth.
+        const frames = 8;
+        const frameMs = 120;
+        let i = 0;
+        const interval = window.setInterval(() => {
+            i += 1;
+            if (i >= frames) {
+                window.clearInterval(interval);
+                setSpinCover(pick); // settle on the winner
+                return;
+            }
+            setSpinCover(surprisePool[Math.floor(Math.random() * surprisePool.length)]);
+        }, frameMs);
+
+        // Hold on the landed cover a beat, then hand off to the detail modal.
+        const finish = window.setTimeout(() => {
+            setSurprising(false);
+            setSpinCover(null);
+            setDetailing(pick);
+        }, frames * frameMs + 380);
+
+        spinTimers.current.push(interval, finish);
+    };
+
+    useEffect(
+        () => () => {
+            spinTimers.current.forEach((t) => {
+                window.clearInterval(t);
+                window.clearTimeout(t);
+            });
+        },
+        [],
+    );
+
     // Stats reflect the active filters. While searching we report matches for the
     // term; a client-side filter reports "12 of 42"; otherwise the full summary.
     const genreLabel = genres.length > 0 ? `${genres.length} genre${genres.length === 1 ? '' : 's'}` : null;
@@ -312,6 +364,16 @@ export default function Index({ vinyls, search }: Props) {
                                 Stats
                             </Button>
                         </Link>
+                    )}
+                    {hasRecords && (
+                        <Button
+                            variant="ghost"
+                            icon="dices"
+                            onClick={surpriseMe}
+                            disabled={surprising || surprisePool.length === 0}
+                        >
+                            Surprise Me
+                        </Button>
                     )}
                     <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
                         Add Vinyl
@@ -364,6 +426,37 @@ export default function Index({ vinyls, search }: Props) {
                     </div>
                 )}
             </div>
+
+            {/* "Surprise Me" flourish — a quick cover shuffle before the detail
+                view lands. Sits above the grid but below the modal that follows. */}
+            {surprising && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-black/80 backdrop-blur-sm">
+                    <div className="relative h-56 w-56">
+                        {/* Sweeping amber glow behind the cover, evoking a spinning disc. */}
+                        <div className="absolute -inset-5 animate-spin rounded-full bg-[conic-gradient(from_0deg,transparent,rgba(245,158,11,0.55),transparent_60%)] blur-md [animation-duration:1.1s]" />
+                        <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-950 shadow-2xl shadow-black/70 ring-2 ring-amber-500/50">
+                            {spinCover?.image ? (
+                                <img
+                                    key={spinCover.id}
+                                    src={spinCover.image}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 via-zinc-900 to-black text-zinc-600">
+                                    <Icon name="disc-3" size="xl" className="opacity-60" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-amber-300">
+                        <Icon name="dices" size="sm" className="animate-bounce" />
+                        <Text as="span" size="sm" weight="medium" className="text-amber-300">
+                            Picking something for you…
+                        </Text>
+                    </div>
+                </div>
+            )}
 
             <AddVinylModal open={addOpen} onClose={() => setAddOpen(false)} existingVinyls={vinyls} />
             <EditVinylModal
