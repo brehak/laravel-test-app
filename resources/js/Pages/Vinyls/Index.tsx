@@ -23,16 +23,30 @@ type Props = { vinyls: Vinyl[]; search: string };
  */
 function VinylDisc({ color }: { color: string }) {
     return (
+        // Outer wrapper owns ONLY the slide. On hover the disc pulls further out
+        // of the sleeve with a weighty ease-out (easeOutQuint bezier) so it
+        // "settles" instead of moving linearly. Transform-only + pointer-events
+        // off keeps it cheap and out of the way of the card's own controls.
         <div
             aria-hidden
-            className="pointer-events-none absolute top-1/2 right-0 z-0 aspect-square w-[92%] -translate-y-1/2 translate-x-[13%] transition-transform duration-500 ease-out group-hover:translate-x-[24%]"
+            className="pointer-events-none absolute top-1/2 right-0 z-0 aspect-square w-[92%] -translate-y-1/2 translate-x-[12%] transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-[42%]"
         >
+            {/* Soft shadow pad sitting a hair below the disc. It deepens and drops
+                as the record lifts out, reading as depth behind the sleeve. Kept
+                on its own (non-rotating) layer so the lift stays directional. */}
+            <div className="absolute inset-0 translate-y-1 rounded-full shadow-[0_10px_24px_rgba(0,0,0,0.55)] transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-y-2.5 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.85)]" />
+
+            {/* The disc face. It spins slowly like a record on a platter — the
+                animation is always applied but paused, and only *runs* on hover,
+                so it resumes from its last angle (no snap) and freezes when the
+                card is left. Pure CSS rotate transform: smooth, no layout work. */}
             <div
-                className="relative h-full w-full rounded-full shadow-xl shadow-black/60 ring-1 ring-black/40"
+                className="relative h-full w-full rounded-full ring-1 ring-black/40 [animation-play-state:paused] animate-[spin_9s_linear_infinite] group-hover:[animation-play-state:running]"
                 style={{ backgroundColor: color }}
             >
-                {/* Faint concentric grooves + a soft top-left sheen — groove spacing
-                    widened to stay proportional now that the disc is full-size. */}
+                {/* Faint concentric grooves + a soft top-left sheen. The grooves
+                    are radially symmetric, so they read as a spinning record
+                    without shimmering as the disc rotates. */}
                 <div
                     className="absolute inset-0 rounded-full"
                     style={{
@@ -40,11 +54,13 @@ function VinylDisc({ color }: { color: string }) {
                             'repeating-radial-gradient(circle at center, rgba(0,0,0,0.22) 0px, rgba(0,0,0,0.22) 1.5px, transparent 1.5px, transparent 7px), radial-gradient(circle at 32% 28%, rgba(255,255,255,0.28), transparent 55%)',
                     }}
                 />
-                {/* Darker center label. */}
+                {/* Center label — tinted toward a darker shade of the disc color. */}
                 <div
                     className="absolute top-1/2 left-1/2 h-1/3 w-1/3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1 ring-black/30"
                     style={{ backgroundColor: color, filter: 'brightness(0.55)' }}
                 >
+                    {/* A couple of faint label rings for a bit more record detail. */}
+                    <div className="absolute top-1/2 left-1/2 h-2/3 w-2/3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1 ring-black/25" />
                     {/* Spindle hole. */}
                     <div className="absolute top-1/2 left-1/2 h-1/4 w-1/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-950 ring-1 ring-white/10" />
                 </div>
