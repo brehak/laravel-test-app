@@ -83,11 +83,24 @@ class VinylController extends Controller
      */
     public function stats(): Response
     {
-        // Scope to the current user, same as every other action here.
-        $vinyls = auth()->user()->vinyls()->get();
+        // Everything on this page is scoped to the current user. Pull the whole
+        // collection once, then split owned vs wishlist in memory rather than
+        // issuing a separate query per aggregate. Every breakdown below is
+        // computed over $owned only — we never look outside the user's records.
+        $all = auth()->user()->vinyls()->get();
+
+        $owned = $all->where('owned', true);
+
+        // --- Collection totals -------------------------------------------
+        $ownedCount = $owned->count();
+        $wishlistCount = $all->where('owned', false)->count();
+
+        // Condition grades from best to worst, so the condition chart reads in
+        // a sensible order regardless of how the rows happen to be stored.
+        $conditionOrder = ['Mint', 'Near Mint', 'VG+', 'VG', 'Good', 'Fair', 'Poor'];
 
         // Top artists: how many records per artist, most-collected first.
-        $topArtists = $vinyls
+        $topArtists = $owned
             ->groupBy('artist')
             ->map(fn ($records, $artist) => [
                 'artist' => $artist,
@@ -99,7 +112,7 @@ class VinylController extends Controller
 
         // Decade breakdown derived from the free-text `year` field. Anything
         // that doesn't parse to a 4-digit year is bucketed as "Unknown".
-        $byDecade = $vinyls
+        $byDecade = $owned
             ->groupBy(function ($vinyl) {
                 if (! preg_match('/\d{4}/', (string) $vinyl->year, $m)) {
                     return 'Unknown';
@@ -115,19 +128,78 @@ class VinylController extends Controller
             ->values();
 
         // Genre distribution: flatten every record's genre array and tally.
-        $byGenre = $vinyls
+        $byGenre = $owned
             ->flatMap(fn ($vinyl) => $vinyl->genre ?? [])
             ->countBy()
             ->sortDesc()
             ->map(fn ($count, $genre) => ['genre' => $genre, 'count' => $count])
             ->values();
 
+        // --- Ratings ------------------------------------------------------
+        // Average is taken across rated records only; unrated ones would drag
+        // it toward zero and misrepresent the collection.
+        $rated = $owned->filter(fn ($vinyl) => $vinyl->rating !== null);
+        $ratedCount = $rated->count();
+        $averageRating = $ratedCount > 0 ? round($rated->avg('rating'), 1) : null;
+
+        // Distribution across the five star levels. Every level is present even
+        // at zero so the chart always renders a full 1–5 axis.
+        $ratingCounts = $rated->countBy('rating');
+        $byRating = collect(range(1, 5))
+            ->map(fn ($star) => ['rating' => $star, 'count' => (int) $ratingCounts->get($star, 0)])
+            ->values();
+
+        // --- Condition breakdown -----------------------------------------
+        // Count per grade, ordered best -> worst. Any unrecognised grade is
+        // appended rather than silently dropped.
+        $conditionCounts = $owned
+            ->filter(fn ($vinyl) => filled($vinyl->condition))
+            ->countBy('condition');
+        $byCondition = collect($conditionOrder)
+            ->filter(fn ($grade) => $conditionCounts->has($grade))
+            ->map(fn ($grade) => ['condition' => $grade, 'count' => $conditionCounts->get($grade)])
+            ->concat(
+                $conditionCounts
+                    ->reject(fn ($count, $grade) => in_array($grade, $conditionOrder, true))
+                    ->map(fn ($count, $grade) => ['condition' => $grade, 'count' => $count])
+                    ->values()
+            )
+            ->values();
+
+        // --- Disc colour breakdown ---------------------------------------
+        // Tally the physical pressing colour (a hex string) so the page can
+        // show how colourful the shelf is. Blank colours are skipped.
+        $byColor = $owned
+            ->filter(fn ($vinyl) => filled($vinyl->color))
+            ->countBy('color')
+            ->sortDesc()
+            ->map(fn ($count, $color) => ['color' => $color, 'count' => $count])
+            ->values();
+
+        // --- Headline single-tops ----------------------------------------
+        $mostCommonGenre = data_get($byGenre->first(), 'genre');
+        // Most-collected *real* decade for the headline card ("Unknown" is not
+        // a decade, so it's excluded from the top pick).
+        $topDecade = data_get(
+            $byDecade->reject(fn ($d) => $d['decade'] === 'Unknown')->sortByDesc('count')->first(),
+            'decade'
+        );
+
         return Inertia::render('Vinyls/Stats', [
-            'totalRecords' => $vinyls->count(),
-            'uniqueArtists' => $vinyls->pluck('artist')->unique()->count(),
+            'totalRecords' => $ownedCount,
+            'wishlistCount' => $wishlistCount,
+            'uniqueArtists' => $owned->pluck('artist')->unique()->count(),
+            'averageRating' => $averageRating,
+            'ratedCount' => $ratedCount,
+            'unratedCount' => $ownedCount - $ratedCount,
+            'mostCommonGenre' => $mostCommonGenre,
+            'topDecade' => $topDecade,
             'topArtists' => $topArtists,
             'byDecade' => $byDecade,
             'byGenre' => $byGenre,
+            'byCondition' => $byCondition,
+            'byRating' => $byRating,
+            'byColor' => $byColor,
         ]);
     }
 
