@@ -1,10 +1,19 @@
 import { router } from '@inertiajs/react';
 import { Badge, Button, Heading, Icon, Modal, Text } from '@particle-academy/react-fancy';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { fetchAlbumTracks, findAlbumByTitleArtist, type ItunesTrack } from '../../services/itunes';
 import { conditionColor } from './Index';
 
 /** Neutral fallback disc color when a record has none stored. */
 const DEFAULT_DISC_COLOR = '#1a1a1a';
+
+/** Format an iTunes trackTimeMillis value as m:ss (e.g. 214000 -> "3:34"). */
+function formatDuration(ms: number): string {
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 /** The vinyl shape shown in the detail view. */
 export type DetailVinyl = {
@@ -93,11 +102,77 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
     const [confirming, setConfirming] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    // Tracklist state — resolved lazily from iTunes when the detail opens.
+    const [tracks, setTracks] = useState<ItunesTrack[]>([]);
+    const [tracksLoading, setTracksLoading] = useState(false);
+    const [tracksUnavailable, setTracksUnavailable] = useState(false);
+    // trackId of the preview currently playing, or null when nothing is playing.
+    const [playingId, setPlayingId] = useState<number | null>(null);
+
+    // One shared <audio> element drives every preview; playing a new track
+    // reuses it, which implicitly stops whatever was playing before.
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     // Reset the confirm state whenever a different record is opened / closed.
     useEffect(() => {
         setConfirming(false);
         setDeleting(false);
     }, [vinyl]);
+
+    // Resolve the album's iTunes tracklist whenever the detail opens for a
+    // record. Vinyls don't store a collectionId, so we first search iTunes by
+    // title + artist to find one, then fetch that album's songs. The cleanup
+    // stops any playing preview when the modal closes or the record changes.
+    useEffect(() => {
+        if (!open || !vinyl) return;
+
+        let cancelled = false;
+        setTracks([]);
+        setTracksUnavailable(false);
+        setTracksLoading(true);
+        setPlayingId(null);
+
+        (async () => {
+            const album = await findAlbumByTitleArtist(vinyl.title, vinyl.artist);
+            if (cancelled) return;
+
+            if (!album) {
+                setTracksUnavailable(true);
+                setTracksLoading(false);
+                return;
+            }
+
+            const found = await fetchAlbumTracks(album.collectionId);
+            if (cancelled) return;
+
+            setTracks(found);
+            setTracksUnavailable(found.length === 0);
+            setTracksLoading(false);
+        })();
+
+        return () => {
+            cancelled = true;
+            audioRef.current?.pause();
+            setPlayingId(null);
+        };
+    }, [open, vinyl]);
+
+    /** Toggle playback for a track through the shared audio element. */
+    const togglePlay = (track: ItunesTrack) => {
+        const audio = audioRef.current;
+        if (!audio || !track.previewUrl) return;
+
+        if (playingId === track.trackId) {
+            audio.pause();
+            setPlayingId(null);
+            return;
+        }
+
+        audio.src = track.previewUrl;
+        audio.play()
+            .then(() => setPlayingId(track.trackId))
+            .catch(() => setPlayingId(null));
+    };
 
     if (!vinyl) return null;
 
@@ -215,16 +290,86 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                         </div>
                     )}
 
-                    {/* Tracklist — reserved slot; the list itself lands in a follow-up. */}
+                    {/* Tracklist — previews resolved from iTunes on open. The list
+                        scrolls internally so it never grows the non-scrolling Modal. */}
                     <div className="mt-6 border-t border-zinc-800/70 pt-4">
                         <Text as="span" size="xs" color="muted" className="uppercase tracking-wide">
                             Tracklist
                         </Text>
-                        <Text as="p" size="sm" className="mt-1 text-zinc-600">
-                            Coming soon.
-                        </Text>
+
+                        {tracksLoading ? (
+                            <div className="mt-2 flex items-center gap-2 text-zinc-500">
+                                <Icon name="loader-2" size="sm" className="animate-spin" />
+                                <Text as="span" size="sm" color="muted">
+                                    Loading tracks…
+                                </Text>
+                            </div>
+                        ) : tracksUnavailable ? (
+                            <Text as="p" size="sm" className="mt-1 text-zinc-600">
+                                Track preview unavailable.
+                            </Text>
+                        ) : (
+                            <ol className="mt-2 max-h-48 space-y-0.5 overflow-y-auto pr-1">
+                                {tracks.map((track) => {
+                                    const isPlaying = playingId === track.trackId;
+                                    const hasPreview = Boolean(track.previewUrl);
+                                    return (
+                                        <li
+                                            key={track.trackId}
+                                            className={`flex items-center gap-3 rounded-md px-2 py-1.5 transition ${
+                                                isPlaying ? 'bg-amber-500/10' : 'hover:bg-zinc-800/50'
+                                            }`}
+                                        >
+                                            <Text
+                                                as="span"
+                                                size="xs"
+                                                className={`w-5 shrink-0 text-right font-mono ${
+                                                    isPlaying ? 'text-amber-400' : 'text-zinc-600'
+                                                }`}
+                                            >
+                                                {track.trackNumber || '–'}
+                                            </Text>
+                                            <Text
+                                                as="span"
+                                                size="sm"
+                                                className={`min-w-0 flex-1 truncate ${
+                                                    isPlaying ? 'text-amber-200' : 'text-zinc-200'
+                                                }`}
+                                            >
+                                                {track.trackName}
+                                            </Text>
+                                            <Text as="span" size="xs" className="shrink-0 font-mono text-zinc-500">
+                                                {formatDuration(track.trackTimeMillis)}
+                                            </Text>
+                                            <button
+                                                type="button"
+                                                onClick={() => togglePlay(track)}
+                                                disabled={!hasPreview}
+                                                aria-label={
+                                                    !hasPreview
+                                                        ? `No preview for ${track.trackName}`
+                                                        : isPlaying
+                                                          ? `Pause ${track.trackName}`
+                                                          : `Play ${track.trackName}`
+                                                }
+                                                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full transition ${
+                                                    isPlaying
+                                                        ? 'bg-amber-500 text-zinc-950'
+                                                        : 'text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100'
+                                                } disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
+                                            >
+                                                <Icon name={isPlaying ? 'pause' : 'play'} size="sm" />
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        )}
                     </div>
                 </div>
+
+                {/* Shared audio element — a single source for every track preview. */}
+                <audio ref={audioRef} onEnded={() => setPlayingId(null)} className="hidden" />
 
                 {/* Footer — reuses the Index edit/delete flows */}
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-800 px-6 py-4">

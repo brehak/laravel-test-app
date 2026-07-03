@@ -38,6 +38,16 @@ export interface SelectedAlbum {
     releaseDate: string;
 }
 
+/** A single song from an album's /lookup?entity=song listing. */
+export interface ItunesTrack {
+    trackId: number;
+    trackNumber: number;
+    trackName: string;
+    /** ~30s MP3 preview; may be '' when iTunes omits one for the track. */
+    previewUrl: string;
+    trackTimeMillis: number;
+}
+
 // ----- Raw API payloads (internal) --------------------------------------
 
 /** Envelope returned by every iTunes Search/Lookup endpoint. */
@@ -46,7 +56,7 @@ interface ItunesResponse<T> {
     results: T[];
 }
 
-/** Loosely-typed raw result row; iTunes mixes artist and collection rows. */
+/** Loosely-typed raw result row; iTunes mixes artist, collection and track rows. */
 interface ItunesRawResult {
     wrapperType?: string;
     collectionType?: string;
@@ -57,6 +67,21 @@ interface ItunesRawResult {
     artworkUrl100?: string;
     releaseDate?: string;
     trackCount?: number;
+    trackId?: number;
+    trackName?: string;
+    trackNumber?: number;
+    previewUrl?: string;
+    trackTimeMillis?: number;
+}
+
+/**
+ * Normalize a title/artist string for loose comparison: lowercase, strip
+ * anything that isn't a letter or digit. Collapses "Sgt. Pepper's..." and
+ * "Sgt Peppers..." to the same token so small punctuation/spacing differences
+ * between our stored data and iTunes don't defeat a match.
+ */
+function normalize(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 // ----- Public functions -------------------------------------------------
@@ -122,6 +147,88 @@ export async function fetchAlbumsByArtist(artistId: number): Promise<ItunesAlbum
                 releaseDate: r.releaseDate ?? '',
             }))
             .sort((a, b) => a.collectionName.localeCompare(b.collectionName));
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Find an album's collectionId by searching iTunes for its title + artist.
+ *
+ * Our vinyls don't store the iTunes collectionId, so callers that need the
+ * tracklist first have to resolve one from the record's free-text title and
+ * artist. iTunes' relevance ranking is decent but not authoritative, so we
+ * only accept a result whose normalized collection name and artist name both
+ * line up with what we asked for — otherwise we'd happily fetch tracks for the
+ * wrong album. Returns `null` when nothing matches confidently (or on error),
+ * letting the UI show a graceful "unavailable" state.
+ */
+export async function findAlbumByTitleArtist(title: string, artist: string): Promise<ItunesAlbum | null> {
+    try {
+        const term = `${artist} ${title}`;
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=10`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+
+        const data: ItunesResponse<ItunesRawResult> = await response.json();
+
+        const wantTitle = normalize(title);
+        const wantArtist = normalize(artist);
+
+        const match = data.results.find((r) => {
+            if (typeof r.collectionId !== 'number' || typeof r.collectionName !== 'string') return false;
+            const gotTitle = normalize(r.collectionName);
+            const gotArtist = normalize(r.artistName ?? '');
+            // iTunes often decorates titles ("... (Deluxe Edition)"), so accept a
+            // containment match either way; require the artist to overlap too.
+            const titleOk = gotTitle.includes(wantTitle) || wantTitle.includes(gotTitle);
+            const artistOk = gotArtist.includes(wantArtist) || wantArtist.includes(gotArtist);
+            return titleOk && artistOk;
+        });
+
+        if (!match) return null;
+
+        return {
+            collectionId: match.collectionId!,
+            collectionName: match.collectionName!,
+            artistName: match.artistName ?? '',
+            artworkUrl100: match.artworkUrl100 ?? '',
+            releaseDate: match.releaseDate ?? '',
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Fetch an album's tracks (with preview URLs) by collectionId.
+ *
+ * The /lookup?entity=song endpoint returns the album row first
+ * (wrapperType === 'collection') followed by its songs
+ * (wrapperType === 'track') — we drop the album row and keep the songs,
+ * sorted by track number. Returns an empty array on any network/parse error.
+ */
+export async function fetchAlbumTracks(collectionId: number): Promise<ItunesTrack[]> {
+    try {
+        const url = `https://itunes.apple.com/lookup?id=${collectionId}&entity=song`;
+        const response = await fetch(url);
+        if (!response.ok) return [];
+
+        const data: ItunesResponse<ItunesRawResult> = await response.json();
+
+        return data.results
+            .filter((r) => r.wrapperType === 'track')
+            .filter((r): r is ItunesRawResult & { trackId: number; trackName: string } =>
+                typeof r.trackId === 'number' && typeof r.trackName === 'string',
+            )
+            .map((r) => ({
+                trackId: r.trackId,
+                trackNumber: r.trackNumber ?? 0,
+                trackName: r.trackName,
+                previewUrl: r.previewUrl ?? '',
+                trackTimeMillis: r.trackTimeMillis ?? 0,
+            }))
+            .sort((a, b) => a.trackNumber - b.trackNumber);
     } catch {
         return [];
     }
