@@ -46,17 +46,35 @@ class VinylController extends Controller
 
     /**
      * Display the authenticated user's wishlist — records they want but don't
-     * yet own. Scoped to the current user, exactly like index().
+     * yet own. Scoped to the current user, optionally filtered by a free-text
+     * search over title and artist, exactly like index().
      */
-    public function wishlist(): Response
+    public function wishlist(Request $request): Response
     {
+        $search = trim((string) $request->query('search', ''));
+
+        // Always scope to the current user's records; the search only ever
+        // narrows within that relationship. Mirrors index() but for wishlist
+        // items (owned = false) instead of owned records.
         $vinyls = auth()->user()->vinyls()
             ->where('owned', false)
+            ->when($search !== '', function ($query) use ($search) {
+                // Case-insensitive partial match on title OR artist. LOWER()
+                // on both sides keeps it portable across DB drivers.
+                $term = '%'.mb_strtolower($search).'%';
+
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(title) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(artist) LIKE ?', [$term]);
+                });
+            })
             ->latest()
             ->get();
 
         return Inertia::render('Vinyls/Wishlist', [
             'vinyls' => $vinyls,
+            // Echo the current term back so the input can stay in sync.
+            'search' => $search,
         ]);
     }
 

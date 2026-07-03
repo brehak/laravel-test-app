@@ -64,9 +64,15 @@ type Props = {
     onClose: () => void;
     /** The user's current collection, used for gentle duplicate detection. */
     existingVinyls?: ExistingVinyl[];
+    /**
+     * Whether records created here land in the owned collection. Defaults to
+     * true so the collection's Add flow is unchanged; the wishlist passes
+     * `false` so new records go to the wishlist instead.
+     */
+    owned?: boolean;
 };
 
-export function AddVinylModal({ open, onClose, existingVinyls = [] }: Props) {
+export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true }: Props) {
     // --- iTunes search state -------------------------------------------
     const [term, setTerm] = useState('');
     const [artists, setArtists] = useState<ItunesArtist[]>([]);
@@ -205,6 +211,8 @@ export function AddVinylModal({ open, onClose, existingVinyls = [] }: Props) {
                 year: form.year || null,
                 condition: form.condition || null,
                 color: form.color || DEFAULT_COLOR,
+                // Routes the record to the collection (true) or wishlist (false).
+                owned,
             },
             {
                 preserveScroll: true,

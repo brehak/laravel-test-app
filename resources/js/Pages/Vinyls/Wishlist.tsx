@@ -2,25 +2,13 @@ import { Link, router } from '@inertiajs/react';
 import { Badge, Button, Card, Heading, Icon, Text } from '@particle-academy/react-fancy';
 import { useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
-import { conditionColor } from './Index';
-
-type Vinyl = {
-    id: number;
-    title: string;
-    artist: string;
-    image: string | null;
-    genre: string[] | null;
-    year: string | null;
-    condition: string | null;
-    color: string | null;
-    rating: number | null;
-    notes: string | null;
-};
+import { AddVinylModal } from './AddVinylModal';
+import { conditionColor, FilterBar, useServerSearch, useVinylFilters, type Vinyl } from './filters';
 
 /** Neutral fallback disc color when a record has none stored. */
 const DEFAULT_DISC_COLOR = '#1a1a1a';
 
-type Props = { vinyls: Vinyl[] };
+type Props = { vinyls: Vinyl[]; search: string };
 
 /**
  * The physical record disc that peeks out from behind the cover on the right —
@@ -144,7 +132,7 @@ function WishlistCard({ vinyl }: { vinyl: Vinyl }) {
     );
 }
 
-function EmptyState() {
+function EmptyState({ onAdd }: { onAdd: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 px-6 py-20 text-center">
             <span className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-amber-500/10 text-amber-500">
@@ -156,7 +144,10 @@ function EmptyState() {
             <Text as="p" color="muted" className="mt-1 max-w-xs">
                 Records you want but don't own yet will show up here.
             </Text>
-            <div className="mt-6">
+            <div className="mt-6 flex items-center gap-2">
+                <Button color="amber" icon="plus" onClick={onAdd}>
+                    Add to Wishlist
+                </Button>
                 <Link href="/vinyls">
                     <Button variant="ghost" icon="arrow-left">
                         Back to collection
@@ -167,8 +158,50 @@ function EmptyState() {
     );
 }
 
-export default function Wishlist({ vinyls }: Props) {
+export default function Wishlist({ vinyls, search }: Props) {
+    const [addOpen, setAddOpen] = useState(false);
+
+    // Server-side search (debounced against /vinyls/wishlist) + client-side
+    // sort/filter — the same wiring the collection uses, over wishlist items.
+    const { query, setQuery, isSearching } = useServerSearch('/vinyls/wishlist', search);
+    const {
+        sort,
+        setSort,
+        activeGenre,
+        setActiveGenre,
+        activeCondition,
+        setActiveCondition,
+        genres,
+        conditions,
+        visible,
+        clearFilters,
+    } = useVinylFilters(vinyls);
+
+    // "Records at all" vs. "records matching the current search" — an empty
+    // `vinyls` while searching means no matches, not an empty wishlist.
     const hasRecords = vinyls.length > 0;
+    const wishlistIsEmpty = !hasRecords && !isSearching;
+
+    // Any control that narrows the set — used for the stats line and the reset action.
+    const anyFilterActive = isSearching || activeGenre !== null || activeCondition !== null;
+
+    const clearAll = () => {
+        clearFilters();
+        setQuery('');
+    };
+
+    // Stats reflect the active filters, mirroring the collection page.
+    const genreLabel = genres.length > 0 ? `${genres.length} genre${genres.length === 1 ? '' : 's'}` : null;
+    const clientFiltered = activeGenre !== null || activeCondition !== null;
+    const statsText = wishlistIsEmpty
+        ? 'Records you want will collect here.'
+        : isSearching
+          ? `${visible.length} result${visible.length === 1 ? '' : 's'} for “${query.trim()}”`
+          : clientFiltered
+            ? `${visible.length} of ${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`
+            : [`${vinyls.length} record${vinyls.length === 1 ? '' : 's'} you're after`, genreLabel]
+                  .filter(Boolean)
+                  .join(' · ');
 
     return (
         <AppLayout title="Wishlist">
@@ -178,9 +211,7 @@ export default function Wishlist({ vinyls }: Props) {
                         Wishlist
                     </Heading>
                     <Text as="p" size="sm" color="muted" className="mt-1">
-                        {hasRecords
-                            ? `${vinyls.length} record${vinyls.length === 1 ? '' : 's'} you're after`
-                            : 'Records you want will collect here.'}
+                        {statsText}
                     </Text>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -189,20 +220,67 @@ export default function Wishlist({ vinyls }: Props) {
                             Collection
                         </Button>
                     </Link>
+                    <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
+                        Add to Wishlist
+                    </Button>
                 </div>
             </div>
 
+            {/* Show the toolbar whenever there are records to work with, or an
+                active search (so the box stays reachable when it returns nothing). */}
+            {!wishlistIsEmpty && (
+                <div className="mt-6">
+                    <FilterBar
+                        searchValue={query}
+                        onSearchChange={setQuery}
+                        searchLabel="Search wishlist"
+                        sort={sort}
+                        onSortChange={setSort}
+                        genres={genres}
+                        activeGenre={activeGenre}
+                        onGenreChange={setActiveGenre}
+                        conditions={conditions}
+                        activeCondition={activeCondition}
+                        onConditionChange={setActiveCondition}
+                    />
+                </div>
+            )}
+
             <div className="mt-6">
-                {hasRecords ? (
+                {wishlistIsEmpty ? (
+                    <EmptyState onAdd={() => setAddOpen(true)} />
+                ) : visible.length > 0 ? (
                     <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {vinyls.map((vinyl) => (
+                        {visible.map((vinyl) => (
                             <WishlistCard key={vinyl.id} vinyl={vinyl} />
                         ))}
                     </div>
                 ) : (
-                    <EmptyState />
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
+                        <Text as="p" size="sm" color="muted">
+                            No records match your filters.
+                        </Text>
+                        {anyFilterActive && (
+                            <button
+                                type="button"
+                                onClick={clearAll}
+                                className="mt-2 text-xs font-medium text-amber-400 transition hover:text-amber-300"
+                            >
+                                Clear all filters
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
+
+            {/* Same modal as the collection, but records created here are wishlist
+                items (owned = false). Duplicate detection reuses the wishlist. */}
+            <AddVinylModal
+                open={addOpen}
+                onClose={() => setAddOpen(false)}
+                existingVinyls={vinyls}
+                owned={false}
+            />
         </AppLayout>
     );
 }
