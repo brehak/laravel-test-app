@@ -3,6 +3,9 @@ import { Badge, Button, Heading, Icon, Modal, Text } from '@particle-academy/rea
 import { useEffect, useState } from 'react';
 import { conditionColor } from './Index';
 
+/** Neutral fallback disc color when a record has none stored. */
+const DEFAULT_DISC_COLOR = '#1a1a1a';
+
 /** The vinyl shape shown in the detail view. */
 export type DetailVinyl = {
     id: number;
@@ -12,6 +15,7 @@ export type DetailVinyl = {
     genre: string[] | null;
     year: string | null;
     condition: string | null;
+    color: string | null;
 };
 
 type Props = {
@@ -32,6 +36,32 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
             </Text>
             <div className="min-w-0 flex-1">{children}</div>
         </div>
+    );
+}
+
+/**
+ * A small disc swatch standing in for the physical record — mirrors the disc
+ * that peeks out from the collection cards, shrunk to metadata-row size.
+ */
+function DiscSwatch({ color }: { color: string }) {
+    return (
+        <span className="inline-flex items-center gap-2">
+            <span
+                className="relative grid h-6 w-6 place-items-center rounded-full shadow-sm shadow-black/40 ring-1 ring-black/40"
+                style={{ backgroundColor: color }}
+            >
+                {/* Darker center label + spindle hole. */}
+                <span
+                    className="grid h-2.5 w-2.5 place-items-center rounded-full ring-1 ring-black/30"
+                    style={{ backgroundColor: color, filter: 'brightness(0.55)' }}
+                >
+                    <span className="h-[3px] w-[3px] rounded-full bg-zinc-950 ring-1 ring-white/10" />
+                </span>
+            </span>
+            <Text as="span" size="xs" color="muted" className="font-mono uppercase tracking-wide">
+                {color}
+            </Text>
+        </span>
     );
 }
 
@@ -85,7 +115,8 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                 </div>
 
                 {/* Content — cover beside metadata (stacks on narrow screens) */}
-                <div className="flex flex-col gap-6 px-6 py-6 sm:flex-row">
+                <div className="px-6 py-6">
+                    <div className="flex flex-col gap-6 sm:flex-row">
                     {/* Large-but-bounded cover art */}
                     <div className="mx-auto w-full max-w-[16rem] shrink-0 sm:mx-0 sm:w-56">
                         <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-950 shadow-xl shadow-black/40 ring-1 ring-zinc-800">
@@ -142,7 +173,22 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                                     </div>
                                 )}
                             </MetaRow>
+
+                            <MetaRow label="Disc">
+                                <DiscSwatch color={vinyl.color || DEFAULT_DISC_COLOR} />
+                            </MetaRow>
                         </div>
+                    </div>
+                    </div>
+
+                    {/* Tracklist — reserved slot; the list itself lands in a follow-up. */}
+                    <div className="mt-6 border-t border-zinc-800/70 pt-4">
+                        <Text as="span" size="xs" color="muted" className="uppercase tracking-wide">
+                            Tracklist
+                        </Text>
+                        <Text as="p" size="sm" className="mt-1 text-zinc-600">
+                            Coming soon.
+                        </Text>
                     </div>
                 </div>
 

@@ -1,9 +1,24 @@
 import { router } from '@inertiajs/react';
-import { Badge, Button, Field, Icon, Input, Modal, Select, Text } from '@particle-academy/react-fancy';
+import { Badge, Button, ColorPicker, Field, Icon, Input, Modal, Select, Text } from '@particle-academy/react-fancy';
 import { useEffect, useState } from 'react';
 
 /** Grades offered for a record's condition, best -> worst. */
 const CONDITIONS = ['Mint', 'Near Mint', 'VG+', 'VG', 'Good', 'Fair', 'Poor'];
+
+/** Neutral default disc color — classic black — used when none is set. */
+const DEFAULT_COLOR = '#1a1a1a';
+
+/** A few common pressing colors offered as quick swatches in the picker. */
+const COLOR_PRESETS = [
+    '#1a1a1a', // classic black
+    '#E4572E', // orange crush
+    '#D62246', // red
+    '#2E86AB', // blue
+    '#3A7D44', // green
+    '#F2C14E', // yellow
+    '#7B4B94', // purple
+    '#F5F0E6', // cream / white
+];
 
 /** The persisted vinyl shape this modal edits. */
 export type EditableVinyl = {
@@ -14,6 +29,7 @@ export type EditableVinyl = {
     genre: string[] | null;
     year: string | null;
     condition: string | null;
+    color: string | null;
 };
 
 type VinylForm = {
@@ -23,6 +39,7 @@ type VinylForm = {
     genre: string[];
     year: string;
     condition: string;
+    color: string;
 };
 
 /** Normalize a nullable persisted vinyl into the modal's editable form shape. */
@@ -34,6 +51,8 @@ function toForm(vinyl: EditableVinyl): VinylForm {
         genre: vinyl.genre ?? [],
         year: vinyl.year ?? '',
         condition: vinyl.condition ?? '',
+        // Pre-fill from the existing record; fall back to the neutral default.
+        color: vinyl.color ?? DEFAULT_COLOR,
     };
 }
 
@@ -45,7 +64,7 @@ type Props = {
 
 export function EditVinylModal({ open, vinyl, onClose }: Props) {
     const [form, setForm] = useState<VinylForm>(() =>
-        vinyl ? toForm(vinyl) : { title: '', artist: '', image: '', genre: [], year: '', condition: '' },
+        vinyl ? toForm(vinyl) : { title: '', artist: '', image: '', genre: [], year: '', condition: '', color: DEFAULT_COLOR },
     );
     const [genreDraft, setGenreDraft] = useState('');
     const [saving, setSaving] = useState(false);
@@ -88,6 +107,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                 genre: form.genre,
                 year: form.year || null,
                 condition: form.condition || null,
+                color: form.color || DEFAULT_COLOR,
             },
             {
                 preserveScroll: true,
@@ -207,6 +227,15 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                             onValueChange={(v) => setField('condition', v)}
                         />
                     </div>
+
+                    {/* --- Disc color ------------------------------------ */}
+                    <Field label="Disc color" description="The color of the physical record.">
+                        <ColorPicker
+                            value={form.color}
+                            onChange={(v) => setField('color', v)}
+                            presets={COLOR_PRESETS}
+                        />
+                    </Field>
                 </div>
 
                 {/* Footer */}

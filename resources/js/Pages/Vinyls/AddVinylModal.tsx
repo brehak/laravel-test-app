@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Badge, Button, Field, Icon, Input, Modal, Select, Text } from '@particle-academy/react-fancy';
+import { Badge, Button, ColorPicker, Field, Icon, Input, Modal, Select, Text } from '@particle-academy/react-fancy';
 import { useEffect, useMemo, useState } from 'react';
 import {
     fetchAlbumsByArtist,
@@ -12,6 +12,21 @@ import {
 /** Grades offered for a record's condition, best -> worst. */
 const CONDITIONS = ['Mint', 'Near Mint', 'VG+', 'VG', 'Good', 'Fair', 'Poor'];
 
+/** Neutral default disc color — classic black — used when none is chosen. */
+const DEFAULT_COLOR = '#1a1a1a';
+
+/** A few common pressing colors offered as quick swatches in the picker. */
+const COLOR_PRESETS = [
+    '#1a1a1a', // classic black
+    '#E4572E', // orange crush
+    '#D62246', // red
+    '#2E86AB', // blue
+    '#3A7D44', // green
+    '#F2C14E', // yellow
+    '#7B4B94', // purple
+    '#F5F0E6', // cream / white
+];
+
 type VinylForm = {
     title: string;
     artist: string;
@@ -19,6 +34,7 @@ type VinylForm = {
     genre: string[];
     year: string;
     condition: string;
+    color: string;
 };
 
 const EMPTY_FORM: VinylForm = {
@@ -28,6 +44,7 @@ const EMPTY_FORM: VinylForm = {
     genre: [],
     year: '',
     condition: '',
+    color: DEFAULT_COLOR,
 };
 
 /** Pull a 4-digit year out of an ISO release date, if present. */
@@ -187,6 +204,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [] }: Props) {
                 genre: form.genre,
                 year: form.year || null,
                 condition: form.condition || null,
+                color: form.color || DEFAULT_COLOR,
             },
             {
                 preserveScroll: true,
@@ -426,6 +444,15 @@ export function AddVinylModal({ open, onClose, existingVinyls = [] }: Props) {
                             onValueChange={(v) => setField('condition', v)}
                         />
                     </div>
+
+                    {/* --- Disc color ------------------------------------ */}
+                    <Field label="Disc color" description="The color of the physical record.">
+                        <ColorPicker
+                            value={form.color}
+                            onChange={(v) => setField('color', v)}
+                            presets={COLOR_PRESETS}
+                        />
+                    </Field>
                 </div>
 
                 {/* Footer */}

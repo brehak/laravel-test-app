@@ -14,7 +14,11 @@ type Vinyl = {
     genre: string[] | null;
     year: string | null;
     condition: string | null;
+    color: string | null;
 };
+
+/** Neutral fallback disc color when a record has none stored. */
+const DEFAULT_DISC_COLOR = '#1a1a1a';
 
 type Props = { vinyls: Vinyl[] };
 
@@ -94,6 +98,43 @@ export function conditionColor(condition: string): 'emerald' | 'amber' | 'orange
     return 'zinc';
 }
 
+/**
+ * The physical record disc that peeks out from behind the cover on the right.
+ * Sits behind the cover art (lower stacking) so only its right edge shows, and
+ * slides further out on card hover — as if pulled from its sleeve.
+ */
+function VinylDisc({ color }: { color: string }) {
+    return (
+        <div
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 right-0 z-0 aspect-square w-[92%] -translate-y-1/2 translate-x-[13%] transition-transform duration-500 ease-out group-hover:translate-x-[24%]"
+        >
+            <div
+                className="relative h-full w-full rounded-full shadow-xl shadow-black/60 ring-1 ring-black/40"
+                style={{ backgroundColor: color }}
+            >
+                {/* Faint concentric grooves + a soft top-left sheen — groove spacing
+                    widened to stay proportional now that the disc is full-size. */}
+                <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                        backgroundImage:
+                            'repeating-radial-gradient(circle at center, rgba(0,0,0,0.22) 0px, rgba(0,0,0,0.22) 1.5px, transparent 1.5px, transparent 7px), radial-gradient(circle at 32% 28%, rgba(255,255,255,0.28), transparent 55%)',
+                    }}
+                />
+                {/* Darker center label. */}
+                <div
+                    className="absolute top-1/2 left-1/2 h-1/3 w-1/3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1 ring-black/30"
+                    style={{ backgroundColor: color, filter: 'brightness(0.55)' }}
+                >
+                    {/* Spindle hole. */}
+                    <div className="absolute top-1/2 left-1/2 h-1/4 w-1/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-950 ring-1 ring-white/10" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function VinylCard({
     vinyl,
     onEdit,
@@ -138,10 +179,15 @@ function VinylCard({
                     onOpen(vinyl);
                 }
             }}
-            className="group cursor-pointer overflow-hidden border-zinc-800/60 bg-zinc-900 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-black/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+            className="group relative z-0 cursor-pointer overflow-visible border-zinc-800/60 bg-zinc-900 transition-all duration-300 ease-out hover:z-20 hover:-translate-y-1.5 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-black/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
-            {/* Cover art carries the visual weight */}
-            <div className="relative aspect-square overflow-hidden bg-zinc-950">
+            {/* Cover + disc live together; the disc peeks out behind the cover. */}
+            <div className="relative">
+                {/* The record disc, behind the cover (z-0), edge showing on the right. */}
+                <VinylDisc color={vinyl.color || DEFAULT_DISC_COLOR} />
+
+                {/* Cover art carries the visual weight; sits above the disc (z-10). */}
+                <div className="relative z-10 aspect-square overflow-hidden rounded-t-lg bg-zinc-950">
                 {vinyl.image ? (
                     <img
                         src={vinyl.image}
@@ -204,6 +250,7 @@ function VinylCard({
 
                 {/* Warm gradient scrim so overlaid text stays legible */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
             </div>
 
             <Card.Body className="space-y-1 p-4">
@@ -341,7 +388,7 @@ export default function Index({ vinyls }: Props) {
                 {!hasRecords ? (
                     <EmptyState onAdd={() => setAddOpen(true)} />
                 ) : visible.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {visible.map((vinyl) => (
                             <VinylCard key={vinyl.id} vinyl={vinyl} onEdit={setEditing} onOpen={setDetailing} />
                         ))}
