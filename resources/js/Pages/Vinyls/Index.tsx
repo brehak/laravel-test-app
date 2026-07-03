@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { Badge, Button, Card, Heading, Icon, Select, Text } from '@particle-academy/react-fancy';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
 import { EditVinylModal } from './EditVinylModal';
@@ -22,72 +22,165 @@ type Vinyl = {
 /** Neutral fallback disc color when a record has none stored. */
 const DEFAULT_DISC_COLOR = '#1a1a1a';
 
-type Props = { vinyls: Vinyl[] };
+type Props = { vinyls: Vinyl[]; search: string };
 
 /** Sort modes. "default" preserves the incoming (recently-added) order. */
-type SortKey = 'default' | 'title' | 'artist' | 'year';
+type SortKey = 'default' | 'title' | 'artist' | 'year-new' | 'year-old' | 'rating';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
     { value: 'default', label: 'Recently added' },
     { value: 'title', label: 'Title (A–Z)' },
     { value: 'artist', label: 'Artist (A–Z)' },
-    { value: 'year', label: 'Year (newest)' },
+    { value: 'year-new', label: 'Year (newest first)' },
+    { value: 'year-old', label: 'Year (oldest first)' },
+    { value: 'rating', label: 'Rating (highest first)' },
 ];
 
-/** Sort + genre filter controls. Purely presentational — all state lives in the parent. */
+/** Sentinel used by the genre/condition Selects to represent "no filter". */
+const ALL = 'all';
+
+/** A labeled Select — the shared shape for the genre / condition / sort controls. */
+function ToolbarSelect({
+    label,
+    value,
+    list,
+    onValueChange,
+}: {
+    label: string;
+    value: string;
+    list: { value: string; label: string }[];
+    onValueChange: (value: string) => void;
+}) {
+    return (
+        <div className="flex shrink-0 items-center gap-2">
+            <Text as="label" size="xs" color="muted" className="shrink-0 uppercase tracking-wide">
+                {label}
+            </Text>
+            <Select
+                size="sm"
+                value={value}
+                list={list}
+                onValueChange={onValueChange}
+                aria-label={`${label} collection`}
+                className="min-w-40"
+            />
+        </div>
+    );
+}
+
+/**
+ * Search + sort + genre/condition filter controls. Purely presentational — all
+ * state lives in the parent. Everything sits in one row that wraps on narrow
+ * screens; the search box grows to fill whatever space the selects leave.
+ */
 function FilterBar({
+    searchValue,
+    onSearchChange,
     sort,
     onSortChange,
     genres,
     activeGenre,
     onGenreChange,
+    conditions,
+    activeCondition,
+    onConditionChange,
 }: {
+    searchValue: string;
+    onSearchChange: (value: string) => void;
     sort: SortKey;
     onSortChange: (sort: SortKey) => void;
     genres: string[];
     activeGenre: string | null;
     onGenreChange: (genre: string | null) => void;
+    conditions: string[];
+    activeCondition: string | null;
+    onConditionChange: (condition: string | null) => void;
 }) {
-    const chip = (label: string, selected: boolean, onClick: () => void) => (
-        <button
-            key={label}
-            type="button"
-            onClick={onClick}
-            aria-pressed={selected}
-            className={
-                selected
-                    ? 'rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300 transition'
-                    : 'rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs font-medium text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200'
-            }
-        >
-            {label}
-        </button>
-    );
+    const genreList = [{ value: ALL, label: 'All genres' }, ...genres.map((g) => ({ value: g, label: g }))];
+    const conditionList = [
+        { value: ALL, label: 'All conditions' },
+        ...conditions.map((c) => ({ value: c, label: c })),
+    ];
 
     return (
-        <div className="flex flex-col gap-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+            {/* Search grows to fill the row; keeps a sensible min width before wrapping. */}
+            <div className="relative min-w-[14rem] flex-1">
+                <Icon
+                    name="search"
+                    size="sm"
+                    className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-500"
+                />
+                <input
+                    type="search"
+                    value={searchValue}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    placeholder="Search by title or artist…"
+                    aria-label="Search collection"
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2 pr-9 pl-9 text-sm text-zinc-100 placeholder:text-zinc-500 transition focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
+                />
+                {searchValue && (
+                    <button
+                        type="button"
+                        onClick={() => onSearchChange('')}
+                        aria-label="Clear search"
+                        className="absolute top-1/2 right-2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+                    >
+                        <Icon name="x" size="sm" />
+                    </button>
+                )}
+            </div>
+
             {genres.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {chip('All', activeGenre === null, () => onGenreChange(null))}
-                    {genres.map((genre) => chip(genre, activeGenre === genre, () => onGenreChange(genre)))}
-                </div>
+                <ToolbarSelect
+                    label="Genre"
+                    value={activeGenre ?? ALL}
+                    list={genreList}
+                    onValueChange={(value) => onGenreChange(value === ALL ? null : value)}
+                />
             )}
 
-            <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
-                <Text as="label" size="xs" color="muted" className="shrink-0 uppercase tracking-wide">
-                    Sort
-                </Text>
-                <Select
-                    size="sm"
-                    value={sort}
-                    list={SORT_OPTIONS}
-                    onValueChange={(value) => onSortChange(value as SortKey)}
-                    aria-label="Sort collection"
-                    className="min-w-40"
+            {conditions.length > 0 && (
+                <ToolbarSelect
+                    label="Condition"
+                    value={activeCondition ?? ALL}
+                    list={conditionList}
+                    onValueChange={(value) => onConditionChange(value === ALL ? null : value)}
                 />
-            </div>
+            )}
+
+            <ToolbarSelect
+                label="Sort"
+                value={sort}
+                list={SORT_OPTIONS}
+                onValueChange={(value) => onSortChange(value as SortKey)}
+            />
         </div>
     );
+}
+
+/**
+ * Canonical grade order (best → worst) for sorting the condition filter. Free-text
+ * conditions are matched case-insensitively; anything unrecognized sorts last.
+ */
+const CONDITION_RANK: Record<string, number> = {
+    sealed: 0,
+    mint: 1,
+    'near mint': 2,
+    nm: 2,
+    'very good plus': 3,
+    'vg+': 3,
+    'very good': 4,
+    vg: 4,
+    'good plus': 5,
+    'g+': 5,
+    good: 6,
+    fair: 7,
+    poor: 8,
+};
+
+function conditionRank(condition: string): number {
+    return CONDITION_RANK[condition.trim().toLowerCase()] ?? Number.POSITIVE_INFINITY;
 }
 
 /** Map a free-text condition grade to a warm-palette badge color. */
@@ -306,25 +399,67 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     );
 }
 
-export default function Index({ vinyls }: Props) {
-    const hasRecords = vinyls.length > 0;
+export default function Index({ vinyls, search }: Props) {
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<Vinyl | null>(null);
     const [detailing, setDetailing] = useState<Vinyl | null>(null);
     const [sort, setSort] = useState<SortKey>('default');
     const [activeGenre, setActiveGenre] = useState<string | null>(null);
+    const [activeCondition, setActiveCondition] = useState<string | null>(null);
 
-    // Every unique genre across the collection, alphabetized for the filter chips.
+    // Search is server-side: the local `query` drives the input while a debounced
+    // effect pushes the term to the backend, which returns the narrowed `vinyls`.
+    const [query, setQuery] = useState(search);
+    const isSearching = query.trim().length > 0;
+
+    useEffect(() => {
+        const trimmed = query.trim();
+        // Already in sync with the server (initial mount, or a just-completed
+        // request) — nothing to fetch. Compare trimmed to match the backend.
+        if (trimmed === search) return;
+
+        const id = setTimeout(() => {
+            router.get(
+                '/vinyls',
+                trimmed ? { search: trimmed } : {},
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                    only: ['vinyls', 'search'],
+                },
+            );
+        }, 300);
+
+        return () => clearTimeout(id);
+    }, [query, search]);
+
+    // "Records at all" vs. "records matching the current search" — an empty
+    // `vinyls` while searching means no matches, not an empty collection.
+    const hasRecords = vinyls.length > 0;
+    const collectionIsEmpty = !hasRecords && !isSearching;
+
+    // Every unique genre across the collection, alphabetized for the filter dropdown.
     const genres = useMemo(
         () => Array.from(new Set(vinyls.flatMap((vinyl) => vinyl.genre ?? []))).sort((a, b) => a.localeCompare(b)),
         [vinyls],
     );
 
-    // Derive the visible list from the prop — filter then sort, never mutating `vinyls`.
+    // Every unique condition present, ordered best grade → worst (unknowns last).
+    const conditions = useMemo(
+        () =>
+            Array.from(new Set(vinyls.map((vinyl) => vinyl.condition).filter((c): c is string => !!c))).sort(
+                (a, b) => conditionRank(a) - conditionRank(b) || a.localeCompare(b),
+            ),
+        [vinyls],
+    );
+
+    // Derive the visible list from the prop — genre + condition narrow the set, the
+    // chosen sort orders whatever remains. Never mutates `vinyls`.
     const visible = useMemo(() => {
-        const filtered = activeGenre
-            ? vinyls.filter((vinyl) => vinyl.genre?.includes(activeGenre))
-            : vinyls;
+        let filtered = vinyls;
+        if (activeGenre) filtered = filtered.filter((vinyl) => vinyl.genre?.includes(activeGenre));
+        if (activeCondition) filtered = filtered.filter((vinyl) => vinyl.condition === activeCondition);
 
         if (sort === 'default') return filtered;
 
@@ -333,21 +468,39 @@ export default function Index({ vinyls }: Props) {
             sorted.sort((a, b) => a.title.localeCompare(b.title));
         } else if (sort === 'artist') {
             sorted.sort((a, b) => a.artist.localeCompare(b.artist));
-        } else if (sort === 'year') {
+        } else if (sort === 'year-new') {
             // Newest first; records without a year sink to the bottom.
             sorted.sort((a, b) => (Number(b.year) || -Infinity) - (Number(a.year) || -Infinity));
+        } else if (sort === 'year-old') {
+            // Oldest first; records without a year still sink to the bottom.
+            sorted.sort((a, b) => (Number(a.year) || Infinity) - (Number(b.year) || Infinity));
+        } else if (sort === 'rating') {
+            // Highest rated first; unrated records sink to the bottom.
+            sorted.sort((a, b) => (b.rating ?? -Infinity) - (a.rating ?? -Infinity));
         }
         return sorted;
-    }, [vinyls, activeGenre, sort]);
+    }, [vinyls, activeGenre, activeCondition, sort]);
 
-    // Stats reflect the active filter: "12 of 42 records" when narrowed, otherwise
-    // the full "42 records · 8 genres" summary.
+    // Any control that narrows the set — used for the stats line and the reset action.
+    const anyFilterActive = isSearching || activeGenre !== null || activeCondition !== null;
+
+    const clearAll = () => {
+        setActiveGenre(null);
+        setActiveCondition(null);
+        setQuery('');
+    };
+
+    // Stats reflect the active filters. While searching we report matches for the
+    // term; a client-side filter reports "12 of 42"; otherwise the full summary.
     const genreLabel = genres.length > 0 ? `${genres.length} genre${genres.length === 1 ? '' : 's'}` : null;
-    const statsText = !hasRecords
+    const clientFiltered = activeGenre !== null || activeCondition !== null;
+    const statsText = collectionIsEmpty
         ? 'Your record shelf is waiting.'
-        : activeGenre
-          ? `${visible.length} of ${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`
-          : [`${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`, genreLabel].filter(Boolean).join(' · ');
+        : isSearching
+          ? `${visible.length} result${visible.length === 1 ? '' : 's'} for “${query.trim()}”`
+          : clientFiltered
+            ? `${visible.length} of ${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`
+            : [`${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`, genreLabel].filter(Boolean).join(' · ');
 
     return (
         <AppLayout title="My Collection">
@@ -374,20 +527,27 @@ export default function Index({ vinyls }: Props) {
                 </div>
             </div>
 
-            {hasRecords && (
+            {/* Show the toolbar whenever there are records to work with, or an
+                active search (so the box stays reachable when it returns nothing). */}
+            {!collectionIsEmpty && (
                 <div className="mt-6">
                     <FilterBar
+                        searchValue={query}
+                        onSearchChange={setQuery}
                         sort={sort}
                         onSortChange={setSort}
                         genres={genres}
                         activeGenre={activeGenre}
                         onGenreChange={setActiveGenre}
+                        conditions={conditions}
+                        activeCondition={activeCondition}
+                        onConditionChange={setActiveCondition}
                     />
                 </div>
             )}
 
             <div className="mt-6">
-                {!hasRecords ? (
+                {collectionIsEmpty ? (
                     <EmptyState onAdd={() => setAddOpen(true)} />
                 ) : visible.length > 0 ? (
                     <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -398,15 +558,17 @@ export default function Index({ vinyls }: Props) {
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
                         <Text as="p" size="sm" color="muted">
-                            No records match{activeGenre ? ` "${activeGenre}"` : ''}.
+                            No records match your filters.
                         </Text>
-                        <button
-                            type="button"
-                            onClick={() => setActiveGenre(null)}
-                            className="mt-2 text-xs font-medium text-amber-400 transition hover:text-amber-300"
-                        >
-                            Clear filter
-                        </button>
+                        {anyFilterActive && (
+                            <button
+                                type="button"
+                                onClick={clearAll}
+                                className="mt-2 text-xs font-medium text-amber-400 transition hover:text-amber-300"
+                            >
+                                Clear all filters
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

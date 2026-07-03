@@ -11,12 +11,33 @@ use Inertia\Response;
 class VinylController extends Controller
 {
     /**
-     * Display the authenticated user's vinyl collection.
+     * Display the authenticated user's vinyl collection, optionally
+     * filtered by a free-text search over title and artist.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $search = trim((string) $request->query('search', ''));
+
+        // Always scope to the current user's records; the search only ever
+        // narrows within that relationship, never queries outside it.
+        $vinyls = auth()->user()->vinyls()
+            ->when($search !== '', function ($query) use ($search) {
+                // Case-insensitive partial match on title OR artist. LOWER()
+                // on both sides keeps it portable across DB drivers.
+                $term = '%'.mb_strtolower($search).'%';
+
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(title) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(artist) LIKE ?', [$term]);
+                });
+            })
+            ->latest()
+            ->get();
+
         return Inertia::render('Vinyls/Index', [
-            'vinyls' => auth()->user()->vinyls()->latest()->get(),
+            'vinyls' => $vinyls,
+            // Echo the current term back so the input can stay in sync.
+            'search' => $search,
         ]);
     }
 
