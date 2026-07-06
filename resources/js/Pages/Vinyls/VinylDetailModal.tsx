@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Badge, Button, Heading, Icon, Modal, Text } from '@particle-academy/react-fancy';
+import { Badge, Button, Heading, Icon, Modal, Skeleton, Text } from '@particle-academy/react-fancy';
 import { useEffect, useRef, useState } from 'react';
 import { fetchAlbumTracks, findAlbumByTitleArtist, type ItunesTrack } from '../../services/itunes';
 import { conditionColor } from './Index';
@@ -193,15 +193,15 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
         <Modal open={open} onClose={onClose} size="full" className="max-w-2xl">
             <div className="flex flex-col">
                 {/* Header */}
-                <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
-                    <Text as="span" size="lg" weight="semibold" className="text-zinc-100">
+                <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
+                    <Text as="span" size="lg" weight="semibold" className="text-zinc-900 dark:text-zinc-100">
                         Record Details
                     </Text>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close"
-                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-500 dark:text-zinc-400 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
                     >
                         <Icon name="x" size="sm" />
                     </button>
@@ -212,7 +212,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                     <div className="flex flex-col gap-6 sm:flex-row">
                     {/* Large-but-bounded cover art */}
                     <div className="mx-auto w-full max-w-[16rem] shrink-0 sm:mx-0 sm:w-56">
-                        <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-950 shadow-xl shadow-black/40 ring-1 ring-zinc-800">
+                        <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-950 shadow-xl shadow-black/40 ring-1 ring-zinc-200 dark:ring-zinc-800">
                             {vinyl.image ? (
                                 <img
                                     src={vinyl.image}
@@ -230,7 +230,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                     {/* Metadata */}
                     <div className="min-w-0 flex-1 space-y-4">
                         <div>
-                            <Heading as="h2" size="xl" weight="bold" className="text-zinc-100">
+                            <Heading as="h2" size="xl" weight="bold" className="text-zinc-900 dark:text-zinc-100">
                                 {vinyl.title}
                             </Heading>
                             <Text as="p" size="md" color="muted" className="mt-1">
@@ -241,7 +241,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                         <div className="space-y-2.5">
                             <MetaRow label="Year">
                                 {vinyl.year && (
-                                    <Text as="span" size="sm" className="font-mono text-amber-500/90">
+                                    <Text as="span" size="sm" className="font-mono text-amber-600 dark:text-amber-500/90">
                                         {vinyl.year}
                                     </Text>
                                 )}
@@ -280,11 +280,11 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
 
                     {/* Personal notes — only shown when the record has any. */}
                     {vinyl.notes && (
-                        <div className="mt-6 border-t border-zinc-800/70 pt-4">
+                        <div className="mt-6 border-t border-zinc-200/70 dark:border-zinc-800/70 pt-4">
                             <Text as="span" size="xs" color="muted" className="uppercase tracking-wide">
                                 Notes
                             </Text>
-                            <Text as="p" size="sm" className="mt-1 whitespace-pre-wrap text-zinc-300">
+                            <Text as="p" size="sm" className="mt-1 whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                                 {vinyl.notes}
                             </Text>
                         </div>
@@ -292,18 +292,27 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
 
                     {/* Tracklist — previews resolved from iTunes on open. The list
                         scrolls internally so it never grows the non-scrolling Modal. */}
-                    <div className="mt-6 border-t border-zinc-800/70 pt-4">
+                    <div className="mt-6 border-t border-zinc-200/70 dark:border-zinc-800/70 pt-4">
                         <Text as="span" size="xs" color="muted" className="uppercase tracking-wide">
                             Tracklist
                         </Text>
 
                         {tracksLoading ? (
-                            <div className="mt-2 flex items-center gap-2 text-zinc-500">
-                                <Icon name="loader-2" size="sm" className="animate-spin" />
-                                <Text as="span" size="sm" color="muted">
-                                    Loading tracks…
-                                </Text>
-                            </div>
+                            // Skeleton rows matching the tracklist layout (number ·
+                            // title · duration · play control) so the list settles
+                            // in place instead of flashing a spinner then popping.
+                            <ol className="mt-2 space-y-0.5" aria-hidden>
+                                {['w-2/3', 'w-1/2', 'w-3/4', 'w-2/5', 'w-3/5', 'w-1/2'].map((w, i) => (
+                                    <li key={i} className="flex items-center gap-3 px-2 py-1.5">
+                                        <Skeleton className="h-3 w-4 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+                                        <div className="min-w-0 flex-1">
+                                            <Skeleton className={`h-3.5 rounded bg-zinc-200 dark:bg-zinc-800/80 ${w}`} />
+                                        </div>
+                                        <Skeleton className="h-3 w-8 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+                                        <Skeleton shape="circle" className="h-7 w-7 bg-zinc-200 dark:bg-zinc-800/80" />
+                                    </li>
+                                ))}
+                            </ol>
                         ) : tracksUnavailable ? (
                             <Text as="p" size="sm" className="mt-1 text-zinc-600">
                                 Track preview unavailable.
@@ -317,14 +326,14 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                                         <li
                                             key={track.trackId}
                                             className={`flex items-center gap-3 rounded-md px-2 py-1.5 transition ${
-                                                isPlaying ? 'bg-amber-500/10' : 'hover:bg-zinc-800/50'
+                                                isPlaying ? 'bg-amber-500/10' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
                                             }`}
                                         >
                                             <Text
                                                 as="span"
                                                 size="xs"
                                                 className={`w-5 shrink-0 text-right font-mono ${
-                                                    isPlaying ? 'text-amber-400' : 'text-zinc-600'
+                                                    isPlaying ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600'
                                                 }`}
                                             >
                                                 {track.trackNumber || '–'}
@@ -333,7 +342,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                                                 as="span"
                                                 size="sm"
                                                 className={`min-w-0 flex-1 truncate ${
-                                                    isPlaying ? 'text-amber-200' : 'text-zinc-200'
+                                                    isPlaying ? 'text-amber-700 dark:text-amber-200' : 'text-zinc-800 dark:text-zinc-200'
                                                 }`}
                                             >
                                                 {track.trackName}
@@ -355,7 +364,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                                                 className={`grid h-7 w-7 shrink-0 place-items-center rounded-full transition ${
                                                     isPlaying
                                                         ? 'bg-amber-500 text-zinc-950'
-                                                        : 'text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100'
+                                                        : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-200'
                                                 } disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
                                             >
                                                 <Icon name={isPlaying ? 'pause' : 'play'} size="sm" />
@@ -372,7 +381,7 @@ export function VinylDetailModal({ open, vinyl, onClose, onEdit }: Props) {
                 <audio ref={audioRef} onEnded={() => setPlayingId(null)} className="hidden" />
 
                 {/* Footer — reuses the Index edit/delete flows */}
-                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-800 px-6 py-4">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
                     <Button
                         variant="ghost"
                         color="rose"

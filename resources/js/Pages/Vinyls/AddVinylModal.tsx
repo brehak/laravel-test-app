@@ -226,15 +226,15 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
         <Modal open={open} onClose={close} size="full" className="max-w-3xl">
             <div className="flex flex-col">
                 {/* Header */}
-                <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
-                    <Text as="span" size="lg" weight="semibold" className="text-zinc-100">
+                <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+                    <Text as="span" size="lg" weight="semibold" className="text-zinc-900 dark:text-zinc-100">
                         Add Vinyl
                     </Text>
                     <button
                         type="button"
                         onClick={close}
                         aria-label="Close"
-                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                     >
                         <Icon name="x" size="sm" />
                     </button>
@@ -260,9 +260,9 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                             />
 
                             {term.trim() && (
-                                <div className="mt-2 h-72 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60">
+                                <div className="mt-2 h-72 overflow-y-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
                                     {searchingArtists && artists.length === 0 ? (
-                                        <div className="flex items-center gap-2 px-3 py-3 text-zinc-400">
+                                        <div className="flex items-center gap-2 px-3 py-3 text-zinc-500 dark:text-zinc-400">
                                             <Icon name="loader-2" size="sm" className="animate-spin" />
                                             <Text as="span" size="sm">Searching...</Text>
                                         </div>
@@ -276,7 +276,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                                 key={artist.artistId}
                                                 type="button"
                                                 onClick={() => pickArtist(artist)}
-                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-amber-500/10 hover:text-amber-300"
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-800 transition hover:bg-amber-500/10 hover:text-amber-300 dark:text-zinc-200"
                                             >
                                                 <Icon name="user" size="sm" className="text-zinc-500" />
                                                 {artist.artistName}
@@ -290,7 +290,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
                                 <Text as="span" size="sm" color="muted">
-                                    Albums by <span className="text-zinc-200">{selectedArtist.artistName}</span>
+                                    Albums by <span className="text-zinc-800 dark:text-zinc-200">{selectedArtist.artistName}</span>
                                 </Text>
                                 {selectedAlbum ? (
                                     <Button variant="ghost" size="xs" icon="chevron-left" onClick={changeAlbum}>
@@ -313,7 +313,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                             className="h-10 w-10 shrink-0 rounded object-cover"
                                         />
                                     ) : (
-                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-zinc-800 text-zinc-600">
+                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-800">
                                             <Icon name="disc-3" size="sm" />
                                         </span>
                                     )}
@@ -330,9 +330,9 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                     <Icon name="check" size="sm" className="shrink-0 text-amber-300" />
                                 </div>
                             ) : (
-                                <div className="h-72 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60">
+                                <div className="h-72 overflow-y-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
                                     {loadingAlbums ? (
-                                        <div className="flex items-center gap-2 px-3 py-3 text-zinc-400">
+                                        <div className="flex items-center gap-2 px-3 py-3 text-zinc-500 dark:text-zinc-400">
                                             <Icon name="loader-2" size="sm" className="animate-spin" />
                                             <Text as="span" size="sm">Loading albums...</Text>
                                         </div>
@@ -351,7 +351,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                                     className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${
                                                         active
                                                             ? 'bg-amber-500/15 text-amber-200'
-                                                            : 'text-zinc-200 hover:bg-zinc-800/70'
+                                                            : 'text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800/70'
                                                     }`}
                                                 >
                                                     {album.artworkUrl100 ? (
@@ -361,7 +361,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                                             className="h-10 w-10 shrink-0 rounded object-cover"
                                                         />
                                                     ) : (
-                                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-zinc-800 text-zinc-600">
+                                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-800">
                                                             <Icon name="disc-3" size="sm" />
                                                         </span>
                                                     )}
@@ -403,7 +403,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
 
                     {/* Genre tag input */}
                     <Field label="Genres" description="Type a genre and press Enter.">
-                        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-2 focus-within:border-amber-500/60">
+                        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 px-2 py-2 focus-within:border-amber-500/60">
                             {form.genre.map((g) => (
                                 <Badge key={g} color="stone" variant="soft" size="md" className="gap-1">
                                     {g}
@@ -411,7 +411,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                         type="button"
                                         onClick={() => removeGenre(g)}
                                         aria-label={`Remove ${g}`}
-                                        className="-mr-0.5 grid place-items-center rounded-full text-zinc-400 transition hover:text-rose-400"
+                                        className="-mr-0.5 grid place-items-center rounded-full text-zinc-500 transition hover:text-rose-400 dark:text-zinc-400"
                                     >
                                         <Icon name="x" size="xs" />
                                     </button>
@@ -429,7 +429,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                                     }
                                 }}
                                 placeholder={form.genre.length ? 'Add another...' : 'e.g. Jazz, Soul, Funk'}
-                                className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                                className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-zinc-900 placeholder:text-zinc-600 focus:outline-none dark:text-zinc-100"
                             />
                         </div>
                     </Field>
@@ -464,7 +464,7 @@ export function AddVinylModal({ open, onClose, existingVinyls = [], owned = true
                 </div>
 
                 {/* Footer */}
-                <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-800 px-6 py-4">
+                <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
                     {/* Gentle duplicate warning — never blocks saving. */}
                     {duplicate && (
                         <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-amber-200">

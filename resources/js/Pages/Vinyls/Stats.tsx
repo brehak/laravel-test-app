@@ -68,15 +68,15 @@ function StatCard({
     const display = isNumber ? value.toLocaleString() : value;
 
     return (
-        <Card variant="elevated" padding="lg" className="border-zinc-800/60 bg-zinc-900">
+        <Card variant="elevated" padding="lg" className="border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900">
             <div className="flex items-center gap-4">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-400">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
                     <Icon name={icon} size="lg" />
                 </span>
                 <div className="min-w-0">
                     <span
                         title={String(display)}
-                        className={`block truncate font-bold tabular-nums text-zinc-100 ${
+                        className={`block truncate font-bold tabular-nums text-zinc-900 dark:text-zinc-100 ${
                             isNumber ? 'text-3xl' : 'text-xl'
                         }`}
                     >
@@ -107,10 +107,10 @@ function Panel({
     children: React.ReactNode;
 }) {
     return (
-        <Card variant="elevated" padding="lg" className="border-zinc-800/60 bg-zinc-900">
+        <Card variant="elevated" padding="lg" className="border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900">
             <div className="mb-4 flex items-center gap-2">
-                <Icon name={icon} size="sm" className="text-amber-400" />
-                <Heading as="h2" size="md" weight="semibold" className="text-zinc-100">
+                <Icon name={icon} size="sm" className="text-amber-600 dark:text-amber-400" />
+                <Heading as="h2" size="md" weight="semibold" className="text-zinc-900 dark:text-zinc-100">
                     {title}
                 </Heading>
             </div>
@@ -122,7 +122,7 @@ function Panel({
 function EmptyPanel({ label }: { label: string }) {
     return (
         <div className="flex h-64 flex-col items-center justify-center text-center">
-            <Icon name="disc-3" size="lg" className="mb-2 text-zinc-700" />
+            <Icon name="disc-3" size="lg" className="mb-2 text-zinc-300 dark:text-zinc-700" />
             <Text as="p" size="sm" color="muted">
                 {label}
             </Text>
@@ -143,7 +143,7 @@ function DiscColorBar({ byColor }: { byColor: ColorSlice[] }) {
 
     return (
         <div>
-            <div className="flex h-10 w-full overflow-hidden rounded-full ring-1 ring-inset ring-zinc-800">
+            <div className="flex h-10 w-full overflow-hidden rounded-full ring-1 ring-inset ring-zinc-200 dark:ring-zinc-800">
                 {byColor.map((c) => (
                     <div
                         key={c.color}
@@ -160,10 +160,10 @@ function DiscColorBar({ byColor }: { byColor: ColorSlice[] }) {
                             className="h-4 w-4 shrink-0 rounded-sm ring-1 ring-inset ring-white/15"
                             style={{ backgroundColor: c.color }}
                         />
-                        <Text as="span" size="sm" className="font-mono uppercase text-zinc-400">
+                        <Text as="span" size="sm" className="font-mono uppercase text-zinc-500 dark:text-zinc-400">
                             {c.color}
                         </Text>
-                        <Text as="span" size="sm" className="font-mono tabular-nums text-amber-500/80">
+                        <Text as="span" size="sm" className="font-mono tabular-nums text-amber-600 dark:text-amber-500/80">
                             {c.count}
                         </Text>
                     </li>
@@ -203,12 +203,12 @@ export default function Stats({
                 <div>
                     <Link
                         href="/vinyls"
-                        className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition hover:text-amber-300"
+                        className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition hover:text-amber-300"
                     >
                         <Icon name="arrow-left" size="sm" />
                         Back to collection
                     </Link>
-                    <Heading as="h1" size="2xl" weight="bold" className="text-zinc-100">
+                    <Heading as="h1" size="2xl" weight="bold" className="text-zinc-900 dark:text-zinc-100">
                         Collection Stats
                     </Heading>
                     <Text as="p" size="sm" color="muted" className="mt-1">
@@ -218,11 +218,11 @@ export default function Stats({
             </div>
 
             {!hasRecords ? (
-                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 px-6 py-20 text-center">
-                    <span className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-amber-500/10 text-amber-500">
+                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-100/70 dark:bg-zinc-900/40 px-6 py-20 text-center">
+                    <span className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500">
                         <Icon name="chart-pie" size="lg" />
                     </span>
-                    <Heading as="h2" size="lg" weight="semibold" className="text-zinc-100">
+                    <Heading as="h2" size="lg" weight="semibold" className="text-zinc-900 dark:text-zinc-100">
                         Nothing to chart yet
                     </Heading>
                     <Text as="p" color="muted" className="mt-1 max-w-xs">
@@ -391,30 +391,30 @@ export default function Stats({
                                 {topArtists.map((a, i) => (
                                     <li
                                         key={a.artist}
-                                        className="flex items-center gap-3 rounded-lg border border-zinc-800/60 bg-zinc-950/40 px-3 py-2.5"
+                                        className="flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100/70 dark:bg-zinc-950/40 px-3 py-2.5"
                                     >
                                         <span
                                             className={
                                                 i < 3
                                                     ? 'grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-500/15 text-sm font-bold text-amber-300'
-                                                    : 'grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-400'
+                                                    : 'grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-sm font-semibold text-zinc-500 dark:text-zinc-400'
                                             }
                                         >
                                             {i + 1}
                                         </span>
                                         <div className="min-w-0 flex-1">
-                                            <Text as="p" size="sm" weight="medium" className="truncate text-zinc-100">
+                                            <Text as="p" size="sm" weight="medium" className="truncate text-zinc-900 dark:text-zinc-100">
                                                 {a.artist}
                                             </Text>
                                             {/* Proportional bar relative to the most-collected artist */}
-                                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                                                 <div
                                                     className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
                                                     style={{ width: `${Math.max(6, (a.count / maxArtist) * 100)}%` }}
                                                 />
                                             </div>
                                         </div>
-                                        <Text as="span" size="sm" className="shrink-0 font-mono text-amber-500/80 tabular-nums">
+                                        <Text as="span" size="sm" className="shrink-0 font-mono text-amber-600 dark:text-amber-500/80 tabular-nums">
                                             {a.count}
                                         </Text>
                                     </li>

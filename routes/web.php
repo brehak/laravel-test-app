@@ -2,9 +2,14 @@
 
 use App\Http\Controllers\VinylController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
+// Site root always lands you somewhere useful: your collection when signed in,
+// the login page otherwise — no need to type /vinyls by hand.
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('vinyls.index')
+        : redirect()->route('login');
+})->name('home');
 
 Route::middleware('auth')->group(function () {
     Route::get('vinyls', [VinylController::class, 'index'])->name('vinyls.index');

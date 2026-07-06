@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Icon, Select, Text } from '@particle-academy/react-fancy';
+import { Button, Heading, Icon, Select, Skeleton, Text } from '@particle-academy/react-fancy';
 import { useEffect, useMemo, useState } from 'react';
 
 /**
@@ -67,6 +67,112 @@ export function conditionColor(condition: string): 'emerald' | 'amber' | 'orange
     if (c.includes('good') || c.includes('fair')) return 'orange';
     if (c.includes('poor') || c.includes('bad')) return 'rose';
     return 'zinc';
+}
+
+/**
+ * A stylized vinyl record used as the hero illustration for empty states — a
+ * grooved black disc with an amber center label and warm glow, echoing the disc
+ * that peeks out from the cards. An optional action badge (a `+` or bookmark)
+ * clips onto the lower-right so each page's empty state reads at a glance.
+ */
+export function RecordIllustration({ badge }: { badge?: string }) {
+    return (
+        <div className="relative mb-6 h-28 w-28">
+            {/* Warm glow pooling behind the disc. */}
+            <div aria-hidden className="absolute -inset-5 rounded-full bg-amber-500/10 blur-2xl" />
+
+            {/* The record itself. */}
+            <div className="relative h-full w-full rounded-full bg-zinc-950 shadow-2xl shadow-black/60 ring-1 ring-zinc-700/60">
+                {/* Concentric grooves. */}
+                <div
+                    aria-hidden
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                        backgroundImage:
+                            'repeating-radial-gradient(circle at center, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 6px)',
+                    }}
+                />
+                {/* Soft amber sheen off the top-left. */}
+                <div
+                    aria-hidden
+                    className="absolute inset-0 rounded-full"
+                    style={{ backgroundImage: 'radial-gradient(circle at 32% 28%, rgba(245,158,11,0.28), transparent 55%)' }}
+                />
+                {/* Amber center label + spindle hole. */}
+                <div className="absolute top-1/2 left-1/2 grid h-2/5 w-2/5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-amber-500/90 ring-1 ring-amber-300/40">
+                    <div className="h-2 w-2 rounded-full bg-zinc-950 ring-1 ring-white/20" />
+                </div>
+            </div>
+
+            {/* Action badge clipped to the disc, ringed to punch out from the glow. */}
+            {badge && (
+                <span className="absolute -right-1 -bottom-1 grid h-9 w-9 place-items-center rounded-full bg-amber-500 text-zinc-950 shadow-lg shadow-black/40 ring-4 ring-zinc-900">
+                    <Icon name={badge} size="sm" />
+                </span>
+            )}
+        </div>
+    );
+}
+
+/**
+ * A single placeholder card matching the real card's footprint — square cover
+ * plus two text lines and a couple of badge chips — so results fade in place
+ * instead of popping in. Shown in a grid while a search request is in flight.
+ */
+function VinylCardSkeleton() {
+    return (
+        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800/60 dark:bg-zinc-900">
+            <Skeleton shape="rect" className="aspect-square w-full rounded-none bg-zinc-200 dark:bg-zinc-800/80" />
+            <div className="space-y-2.5 p-4">
+                <Skeleton shape="text" className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+                <Skeleton shape="text" className="h-3 w-1/2 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+                <div className="flex gap-1.5 pt-1">
+                    <Skeleton shape="rect" className="h-5 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800/60" />
+                    <Skeleton shape="rect" className="h-5 w-14 rounded-full bg-zinc-200 dark:bg-zinc-800/60" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** A grid of placeholder cards, laid out exactly like the real record grid. */
+export function VinylGridSkeleton({ count = 10 }: { count?: number }) {
+    return (
+        <div
+            aria-hidden
+            className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        >
+            {Array.from({ length: count }).map((_, i) => (
+                <VinylCardSkeleton key={i} />
+            ))}
+        </div>
+    );
+}
+
+/**
+ * Shown when a search or filter narrows the list to nothing while the shelf
+ * itself still has records — distinct from the truly-empty state. Copy adapts to
+ * whether a search term is active, and the reset clears both search and filters.
+ */
+export function NoResults({ isSearching, query, onClear }: { isSearching: boolean; query: string; onClear: () => void }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-100/60 px-6 py-16 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
+            <span className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-800/70">
+                <Icon name={isSearching ? 'search-x' : 'filter-x'} size="md" />
+            </span>
+            <Heading as="h3" size="md" weight="semibold" className="text-zinc-800 dark:text-zinc-200">
+                No matches found
+            </Heading>
+            <Text as="p" size="sm" color="muted" className="mt-1.5 max-w-xs">
+                {isSearching
+                    ? `Nothing on your shelf matches “${query.trim()}”. Try another term or clear your search.`
+                    : 'No records match the selected filters. Try loosening them to see more.'}
+            </Text>
+            <Button variant="ghost" color="amber" size="sm" icon="x" onClick={onClear} className="mt-4">
+                {isSearching ? 'Clear search & filters' : 'Clear filters'}
+            </Button>
+        </div>
+    );
 }
 
 /** A labeled Select — the shared shape for the genre / condition / sort controls. */
@@ -138,7 +244,7 @@ export function FilterBar({
     ];
 
     return (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-100/70 p-4 dark:border-zinc-800/60 dark:bg-zinc-900/40">
             {/* Search grows to fill the row; keeps a sensible min width before wrapping. */}
             <div className="relative min-w-[14rem] flex-1">
                 <Icon
@@ -152,14 +258,14 @@ export function FilterBar({
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder={searchPlaceholder}
                     aria-label={searchLabel}
-                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2 pr-9 pl-9 text-sm text-zinc-100 placeholder:text-zinc-500 transition focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/40"
+                    className="w-full rounded-lg border border-zinc-300 bg-white py-2 pr-9 pl-9 text-sm text-zinc-900 placeholder:text-zinc-400 transition focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/40 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                 />
                 {searchValue && (
                     <button
                         type="button"
                         onClick={() => onSearchChange('')}
                         aria-label="Clear search"
-                        className="absolute top-1/2 right-2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        className="absolute top-1/2 right-2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                     >
                         <Icon name="x" size="sm" />
                     </button>
@@ -273,6 +379,10 @@ export function useVinylFilters(vinyls: Vinyl[]) {
  */
 export function useServerSearch(url: string, search: string) {
     const [query, setQuery] = useState(search);
+    // True while a search request is actually in flight — drives the loading
+    // skeletons so the grid doesn't sit on stale results (preserveState keeps
+    // the old list mounted until the response lands).
+    const [loading, setLoading] = useState(false);
     const isSearching = query.trim().length > 0;
 
     useEffect(() => {
@@ -290,6 +400,8 @@ export function useServerSearch(url: string, search: string) {
                     preserveScroll: true,
                     replace: true,
                     only: ['vinyls', 'search'],
+                    onStart: () => setLoading(true),
+                    onFinish: () => setLoading(false),
                 },
             );
         }, 300);
@@ -297,5 +409,5 @@ export function useServerSearch(url: string, search: string) {
         return () => clearTimeout(id);
     }, [query, search, url]);
 
-    return { query, setQuery, isSearching };
+    return { query, setQuery, isSearching, loading };
 }

@@ -131,15 +131,15 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
         <Modal open={open} onClose={onClose} size="full" className="max-w-3xl">
             <div className="flex flex-col">
                 {/* Header */}
-                <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
-                    <Text as="span" size="lg" weight="semibold" className="text-zinc-100">
+                <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+                    <Text as="span" size="lg" weight="semibold" className="text-zinc-900 dark:text-zinc-100">
                         Edit Vinyl
                     </Text>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close"
-                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                        className="grid h-8 w-8 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                     >
                         <Icon name="x" size="sm" />
                     </button>
@@ -158,7 +158,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                                 className="h-20 w-20 shrink-0 rounded-lg object-cover"
                             />
                         ) : (
-                            <span className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-zinc-800 text-zinc-600">
+                            <span className="grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800">
                                 <Icon name="disc-3" size="lg" />
                             </span>
                         )}
@@ -182,7 +182,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
 
                     {/* Genre tag input */}
                     <Field label="Genres" description="Type a genre and press Enter.">
-                        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 focus-within:border-amber-500/60">
+                        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 focus-within:border-amber-500/60 dark:border-zinc-800 dark:bg-zinc-900/60">
                             {form.genre.map((g) => (
                                 <Badge key={g} color="stone" variant="soft" size="md" className="gap-1">
                                     {g}
@@ -190,7 +190,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                                         type="button"
                                         onClick={() => removeGenre(g)}
                                         aria-label={`Remove ${g}`}
-                                        className="-mr-0.5 grid place-items-center rounded-full text-zinc-400 transition hover:text-rose-400"
+                                        className="-mr-0.5 grid place-items-center rounded-full text-zinc-500 transition hover:text-rose-400 dark:text-zinc-400"
                                     >
                                         <Icon name="x" size="xs" />
                                     </button>
@@ -208,7 +208,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                                     }
                                 }}
                                 placeholder={form.genre.length ? 'Add another...' : 'e.g. Jazz, Soul, Funk'}
-                                className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                                className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-zinc-900 placeholder:text-zinc-600 focus:outline-none dark:text-zinc-100"
                             />
                         </div>
                     </Field>
@@ -271,7 +271,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                                     <button
                                         type="button"
                                         onClick={() => setField('rating', null)}
-                                        className="ml-1.5 text-xs text-zinc-500 transition hover:text-zinc-300"
+                                        className="ml-1.5 text-xs text-zinc-500 transition hover:text-zinc-700 dark:hover:text-zinc-300"
                                     >
                                         Clear
                                     </button>
@@ -295,7 +295,7 @@ export function EditVinylModal({ open, vinyl, onClose }: Props) {
                 </div>
 
                 {/* Footer */}
-                <div className="flex shrink-0 justify-end gap-2 border-t border-zinc-800 px-6 py-4">
+                <div className="flex shrink-0 justify-end gap-2 border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
                     <Button variant="ghost" onClick={onClose} disabled={saving}>
                         Cancel
                     </Button>
