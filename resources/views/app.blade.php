@@ -10,7 +10,12 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#E4572E" />
 
-    <title inertia>{{ config('app.name', 'Fancy') }}</title>
+    {{-- SEO / OpenGraph / Twitter tags. The package renders the <title> with the
+         `inertia` attribute on Inertia routes, so Inertia's client-side head manager
+         still owns the title on SPA navigation — no separate <title inertia> needed.
+         Controllers may pass a page-specific SEOData object via ->withViewData('seo', …)
+         (see PublicCollectionController@show); otherwise the config fallbacks apply. --}}
+    {!! seo($seo ?? null) !!}
 
     {{-- Apply the saved/system theme before first paint to avoid a flash. --}}
     <script>

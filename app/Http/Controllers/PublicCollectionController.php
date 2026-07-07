@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use RalphJSmit\Laravel\SEO\Support\SEOData;
 
 class PublicCollectionController extends Controller
 {
@@ -49,11 +50,25 @@ class PublicCollectionController extends Controller
                 'color' => $vinyl->color,
             ]);
 
+        // Page-specific SEO so shared links (iMessage/Twitter/Discord) get a rich
+        // preview. Built from public-safe data ONLY — the owner's display name, the
+        // record count, and the newest record's cover art. No email, slug, or any
+        // private field ever reaches these tags. Passed to the root Blade view via
+        // ->withViewData (NOT as an Inertia prop), so `seo($seo)` in app.blade.php
+        // receives the real SEOData object rather than a JSON-serialized copy.
+        $count = $vinyls->count();
+        $seo = new SEOData(
+            title: "{$user->name}'s Vinyl Collection",
+            description: "{$user->name}'s record collection on SpinList — {$count} records",
+            // First (newest) record's cover art; falls back to config('seo.image.fallback').
+            image: $vinyls->first()['image'] ?? null,
+        );
+
         return Inertia::render('Public/Collection', [
             // Only the display name — never the email or any other account field.
             'owner' => ['name' => $user->name],
             'vinyls' => $vinyls,
-        ]);
+        ])->withViewData('seo', $seo);
     }
 
     /**
