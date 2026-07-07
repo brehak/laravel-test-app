@@ -13,6 +13,7 @@ import {
     VinylGridSkeleton,
     type Vinyl,
 } from './filters';
+import { ShareCollection } from './ShareCollection';
 import { VinylCard } from './VinylCard';
 import { VinylDetailModal } from './VinylDetailModal';
 
@@ -20,7 +21,7 @@ import { VinylDetailModal } from './VinylDetailModal';
 // the implementation now lives alongside the shared filter controls.
 export { conditionColor } from './filters';
 
-type Props = { vinyls: Vinyl[]; search: string };
+type Props = { vinyls: Vinyl[]; search: string; shareUrl: string | null };
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
     return (
@@ -42,7 +43,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     );
 }
 
-export default function Index({ vinyls, search }: Props) {
+export default function Index({ vinyls, search, shareUrl }: Props) {
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<Vinyl | null>(null);
     const [detailing, setDetailing] = useState<Vinyl | null>(null);
@@ -170,6 +171,7 @@ export default function Index({ vinyls, search }: Props) {
                             Surprise Me
                         </Button>
                     )}
+                    {hasRecords && <ShareCollection shareUrl={shareUrl} />}
                     <Button color="amber" icon="plus" onClick={() => setAddOpen(true)}>
                         Add Vinyl
                     </Button>

@@ -62,14 +62,16 @@ function VinylDisc({ color }: { color: string }) {
 type VinylCardProps = {
     vinyl: Vinyl;
     /**
-     * Which shelf the card lives on. Only the actions differ between the two:
+     * Which shelf the card lives on. Only the actions differ between variants:
      * - `collection`: clickable card that opens the detail view, with hover
      *   edit / move-to-wishlist / delete controls over the cover.
      * - `wishlist`: a "Mark as owned" button in the body that moves the record
      *   into the collection.
-     * The disc animation and card styling are identical either way.
+     * - `public`: fully read-only — no click target, no hover controls, no
+     *   actions. Used on the public shareable collection page.
+     * The disc animation and card styling are identical across all three.
      */
-    variant: 'collection' | 'wishlist';
+    variant: 'collection' | 'wishlist' | 'public';
     /** Open the detail view (collection only). */
     onOpen?: (vinyl: Vinyl) => void;
     /** Open the edit modal (collection only). */
@@ -254,8 +256,9 @@ export function VinylCard({ vinyl, variant, onOpen, onEdit }: VinylCardProps) {
                     </div>
                 )}
 
-                {/* Wishlist action: move the record into the collection. */}
-                {!isCollection && (
+                {/* Wishlist action: move the record into the collection. Never
+                    shown on the read-only public variant. */}
+                {variant === 'wishlist' && (
                     <Button
                         color="amber"
                         size="sm"

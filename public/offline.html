@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#E4572E" />
+    <title>You're offline — SpinList</title>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: #0a0a0a;
+            color: #f5f0e8;
+            font-family: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+            text-align: center;
+        }
+        .card { max-width: 24rem; }
+        .disc {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, #0a0a0a 22%, #1c1c1c 23% 30%, #2a2a2a 31%);
+            border: 2px solid #E4572E;
+            position: relative;
+        }
+        .disc::after {
+            content: '';
+            position: absolute;
+            inset: 40px;
+            border-radius: 50%;
+            background: #E4572E;
+        }
+        h1 { font-size: 1.5rem; margin: 0 0 0.5rem; font-weight: 600; }
+        p { margin: 0 0 1.75rem; color: #b8afa2; line-height: 1.5; }
+        button {
+            appearance: none;
+            border: 0;
+            border-radius: 0.625rem;
+            padding: 0.75rem 1.5rem;
+            font: inherit;
+            font-weight: 600;
+            color: #0a0a0a;
+            background: #E4572E;
+            cursor: pointer;
+        }
+        button:hover { background: #f06a41; }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <div class="disc" aria-hidden="true"></div>
+        <h1>You're offline</h1>
+        <p>SpinList can't reach the internet right now. Your cached records are still here — reconnect to spin up the latest.</p>
+        <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+</body>
+</html>

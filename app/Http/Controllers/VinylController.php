@@ -18,11 +18,13 @@ class VinylController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
 
+        $user = $request->user();
+
         // Always scope to the current user's records; the search only ever
         // narrows within that relationship, never queries outside it. The
         // collection page shows owned records only — wishlist items live on
         // their own page.
-        $vinyls = auth()->user()->vinyls()
+        $vinyls = $user->vinyls()
             ->where('owned', true)
             ->when($search !== '', function ($query) use ($search) {
                 // Case-insensitive partial match on title OR artist. LOWER()
@@ -41,6 +43,9 @@ class VinylController extends Controller
             'vinyls' => $vinyls,
             // Echo the current term back so the input can stay in sync.
             'search' => $search,
+            // The public link for this collection, or null when sharing hasn't
+            // been enabled yet. Drives the "Share" control's two states.
+            'shareUrl' => $user->share_slug ? route('collection.public', $user->share_slug) : null,
         ]);
     }
 

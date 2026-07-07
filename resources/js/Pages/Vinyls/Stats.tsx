@@ -1,25 +1,29 @@
+import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { Card, Heading, Icon, Text } from '@particle-academy/react-fancy';
-import {
-    BarChart,
-    CanvasRenderer,
-    EChart,
-    GridComponent,
-    LegendComponent,
-    PieChart,
-    registerCharts,
-    registerComponents,
-    TitleComponent,
-    TooltipComponent,
-} from '@particle-academy/fancy-echarts';
-import { use } from 'echarts/core';
+import { EChart } from '@particle-academy/fancy-echarts';
+import { FancyClientOnly } from '@particle-academy/fancy-inertia';
 import { AppLayout } from '@/layouts/AppLayout';
 
-// The app boots with `appRoot: false`, so ECharts isn't auto-registered.
-// Register only the pieces this page draws with (tree-shake friendly).
-registerCharts(BarChart, PieChart);
-registerComponents(GridComponent, TooltipComponent, TitleComponent, LegendComponent);
-use([CanvasRenderer]);
+// Chart types + built-in themes ("dark-preset") are registered once at the app
+// entry (resources/js/app.tsx). Nothing to register here — just render <EChart>.
+
+/**
+ * Escape user-entered text before it lands in an ECharts HTML tooltip string.
+ * ECharts interprets a formatter's return value as HTML, so any user data
+ * (genre names, condition grades) MUST be escaped to avoid injection — see the
+ * "Security: untrusted formatter strings" section of the fancy-echarts README.
+ */
+const escapeHtml = (value: string): string =>
+    value.replace(
+        /[&<>"']/g,
+        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
+    );
+
+/** Skeleton shown while <FancyClientOnly> defers the chart to the client. */
+function ChartSkeleton() {
+    return <div className="h-80 w-full animate-pulse rounded-xl bg-zinc-200/60 dark:bg-zinc-800/40" />;
+}
 
 type TopArtist = { artist: string; count: number };
 type DecadeSlice = { decade: string; count: number };
@@ -45,8 +49,18 @@ type Props = {
     byColor: ColorSlice[];
 };
 
-// Warm amber→orange→stone palette to match the collection's dark aesthetic.
-const WARM_PALETTE = ['#f59e0b', '#f97316', '#fbbf24', '#ea580c', '#d97706', '#fdba74', '#b45309', '#78716c'];
+// Amber accent that anchors the palette, matching the app's dark warm chrome.
+const AMBER = '#E4572E';
+
+// Warm amber→orange→stone palette to match the collection's dark aesthetic,
+// led by the amber accent so the first (largest) pie slice carries it.
+const WARM_PALETTE = [AMBER, '#f59e0b', '#f97316', '#fbbf24', '#ea580c', '#d97706', '#fdba74', '#b45309'];
+
+// Shared dark-friendly axis styling reused across the bar charts. Defined at
+// module scope so the memoized option objects keep a stable reference.
+const AXIS_LABEL = { color: '#a1a1aa' };
+const SPLIT_LINE = { lineStyle: { color: 'rgba(63,63,70,0.4)' } };
+const AXIS_LINE = { lineStyle: { color: '#3f3f46' } };
 
 /**
  * A big headline number (or short string) with a label. Numbers are formatted
@@ -192,9 +206,123 @@ export default function Stats({
     const hasRecords = totalRecords > 0;
     const maxArtist = topArtists[0]?.count ?? 1;
 
-    // Shared theming so every chart reads on the dark background.
-    const axisLabel = { color: '#a1a1aa' };
-    const splitLine = { lineStyle: { color: 'rgba(63,63,70,0.4)' } };
+    // ── Chart options ────────────────────────────────────────────────────────
+    // Each option is memoized so its reference stays stable across re-renders;
+    // ECharts only re-diffs when the underlying stats actually change (README:
+    // "Keep the chart option memoized"). All use a transparent background so the
+    // "dark-preset" theme blends into the page's warm dark surface.
+
+    // Genre distribution — donut. Genre names are user-entered, so the tooltip
+    // uses a FUNCTION formatter that escapes the name before building HTML.
+    const genreOption = useMemo(
+        () => ({
+            backgroundColor: 'transparent',
+            color: WARM_PALETTE,
+            tooltip: {
+                trigger: 'item',
+                formatter: (p: any) =>
+                    `<span style="font-weight:600">${escapeHtml(String(p.name))}</span><br/>` +
+                    `${p.value} record${p.value === 1 ? '' : 's'} · ${p.percent}%`,
+            },
+            legend: {
+                type: 'scroll',
+                orient: 'horizontal',
+                bottom: 0,
+                textStyle: { color: '#a1a1aa' },
+            },
+            series: [
+                {
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    center: ['50%', '45%'],
+                    data: byGenre.map((g) => ({ name: g.genre, value: g.count })),
+                    itemStyle: { borderColor: '#18181b', borderWidth: 2 },
+                    label: { color: '#d4d4d8' },
+                    emphasis: { itemStyle: { shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.45)' } },
+                },
+            ],
+        }),
+        [byGenre],
+    );
+
+    // Decade breakdown — bar. Decade labels are derived server-side (safe), so a
+    // plain axis tooltip is fine here.
+    const decadeOption = useMemo(
+        () => ({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+            xAxis: { type: 'category', data: byDecade.map((d) => d.decade), axisLabel: AXIS_LABEL, axisLine: AXIS_LINE },
+            yAxis: { type: 'value', minInterval: 1, axisLabel: AXIS_LABEL, splitLine: SPLIT_LINE },
+            series: [
+                {
+                    name: 'Records',
+                    type: 'bar',
+                    data: byDecade.map((d) => d.count),
+                    barMaxWidth: 44,
+                    itemStyle: { color: AMBER, borderRadius: [4, 4, 0, 0] },
+                },
+            ],
+        }),
+        [byDecade],
+    );
+
+    // Rating distribution — bar (1–5 stars). Categories are numeric, safe.
+    const ratingOption = useMemo(
+        () => ({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+            xAxis: { type: 'category', data: byRating.map((r) => `${r.rating}★`), axisLabel: AXIS_LABEL, axisLine: AXIS_LINE },
+            yAxis: { type: 'value', minInterval: 1, axisLabel: AXIS_LABEL, splitLine: SPLIT_LINE },
+            series: [
+                {
+                    name: 'Records',
+                    type: 'bar',
+                    data: byRating.map((r) => r.count),
+                    barMaxWidth: 44,
+                    itemStyle: { color: '#fbbf24', borderRadius: [4, 4, 0, 0] },
+                },
+            ],
+        }),
+        [byRating],
+    );
+
+    // Condition breakdown — bar. Condition grades can be free-text, so the
+    // tooltip escapes the category name via a FUNCTION formatter.
+    const conditionOption = useMemo(
+        () => ({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: (params: any) => {
+                    const p = params[0];
+                    return `<span style="font-weight:600">${escapeHtml(String(p.name))}</span><br/>${p.value} record${
+                        p.value === 1 ? '' : 's'
+                    }`;
+                },
+            },
+            grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: byCondition.map((c) => c.condition),
+                axisLabel: { ...AXIS_LABEL, interval: 0, rotate: 30 },
+                axisLine: AXIS_LINE,
+            },
+            yAxis: { type: 'value', minInterval: 1, axisLabel: AXIS_LABEL, splitLine: SPLIT_LINE },
+            series: [
+                {
+                    name: 'Records',
+                    type: 'bar',
+                    data: byCondition.map((c) => c.count),
+                    barMaxWidth: 40,
+                    itemStyle: { color: '#f97316', borderRadius: [4, 4, 0, 0] },
+                },
+            ],
+        }),
+        [byCondition],
+    );
 
     return (
         <AppLayout title="Collection Stats">
@@ -277,24 +405,9 @@ export default function Stats({
                         {/* Genre distribution — donut */}
                         <Panel title="Genre Distribution" icon="chart-pie">
                             {byGenre.length > 0 ? (
-                                <EChart.Pie
-                                    data={byGenre.map((g) => ({ name: g.genre, value: g.count }))}
-                                    tooltip
-                                    legend={{
-                                        type: 'scroll',
-                                        orient: 'horizontal',
-                                        bottom: 0,
-                                        textStyle: { color: '#a1a1aa' },
-                                    }}
-                                    seriesOptions={{
-                                        radius: ['45%', '70%'],
-                                        center: ['50%', '45%'],
-                                        itemStyle: { borderColor: '#18181b', borderWidth: 2 },
-                                        label: { color: '#d4d4d8' },
-                                    }}
-                                    option={{ color: WARM_PALETTE }}
-                                    style={{ height: 320 }}
-                                />
+                                <FancyClientOnly fallback={<ChartSkeleton />}>
+                                    <EChart theme="dark-preset" option={genreOption} style={{ height: 320 }} />
+                                </FancyClientOnly>
                             ) : (
                                 <EmptyPanel label="No genres tagged yet." />
                             )}
@@ -303,21 +416,9 @@ export default function Stats({
                         {/* Decade breakdown — bar */}
                         <Panel title="Records by Decade" icon="chart-column">
                             {byDecade.length > 0 ? (
-                                <EChart.Bar
-                                    data={{
-                                        categories: byDecade.map((d) => d.decade),
-                                        series: [{ name: 'Records', data: byDecade.map((d) => d.count) }],
-                                    }}
-                                    tooltip
-                                    xAxis={{ type: 'category', axisLabel, axisLine: { lineStyle: { color: '#3f3f46' } } }}
-                                    yAxis={{ type: 'value', minInterval: 1, axisLabel, splitLine }}
-                                    grid={{ left: 8, right: 16, top: 16, bottom: 8, containLabel: true }}
-                                    seriesOptions={{
-                                        barMaxWidth: 44,
-                                        itemStyle: { color: '#f59e0b', borderRadius: [4, 4, 0, 0] },
-                                    }}
-                                    style={{ height: 320 }}
-                                />
+                                <FancyClientOnly fallback={<ChartSkeleton />}>
+                                    <EChart theme="dark-preset" option={decadeOption} style={{ height: 320 }} />
+                                </FancyClientOnly>
                             ) : (
                                 <EmptyPanel label="No dated records yet." />
                             )}
@@ -329,25 +430,9 @@ export default function Stats({
                         {/* Condition breakdown — bar */}
                         <Panel title="Condition Breakdown" icon="badge-check">
                             {byCondition.length > 0 ? (
-                                <EChart.Bar
-                                    data={{
-                                        categories: byCondition.map((c) => c.condition),
-                                        series: [{ name: 'Records', data: byCondition.map((c) => c.count) }],
-                                    }}
-                                    tooltip
-                                    xAxis={{
-                                        type: 'category',
-                                        axisLabel: { ...axisLabel, interval: 0, rotate: 30 },
-                                        axisLine: { lineStyle: { color: '#3f3f46' } },
-                                    }}
-                                    yAxis={{ type: 'value', minInterval: 1, axisLabel, splitLine }}
-                                    grid={{ left: 8, right: 16, top: 16, bottom: 8, containLabel: true }}
-                                    seriesOptions={{
-                                        barMaxWidth: 40,
-                                        itemStyle: { color: '#f97316', borderRadius: [4, 4, 0, 0] },
-                                    }}
-                                    style={{ height: 320 }}
-                                />
+                                <FancyClientOnly fallback={<ChartSkeleton />}>
+                                    <EChart theme="dark-preset" option={conditionOption} style={{ height: 320 }} />
+                                </FancyClientOnly>
                             ) : (
                                 <EmptyPanel label="No condition grades recorded yet." />
                             )}
@@ -356,21 +441,9 @@ export default function Stats({
                         {/* Rating distribution — bar */}
                         <Panel title="Rating Distribution" icon="star">
                             {ratedCount > 0 ? (
-                                <EChart.Bar
-                                    data={{
-                                        categories: byRating.map((r) => `${r.rating}★`),
-                                        series: [{ name: 'Records', data: byRating.map((r) => r.count) }],
-                                    }}
-                                    tooltip
-                                    xAxis={{ type: 'category', axisLabel, axisLine: { lineStyle: { color: '#3f3f46' } } }}
-                                    yAxis={{ type: 'value', minInterval: 1, axisLabel, splitLine }}
-                                    grid={{ left: 8, right: 16, top: 16, bottom: 8, containLabel: true }}
-                                    seriesOptions={{
-                                        barMaxWidth: 44,
-                                        itemStyle: { color: '#fbbf24', borderRadius: [4, 4, 0, 0] },
-                                    }}
-                                    style={{ height: 320 }}
-                                />
+                                <FancyClientOnly fallback={<ChartSkeleton />}>
+                                    <EChart theme="dark-preset" option={ratingOption} style={{ height: 320 }} />
+                                </FancyClientOnly>
                             ) : (
                                 <EmptyPanel label="Nothing rated yet." />
                             )}

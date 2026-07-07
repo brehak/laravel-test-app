@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    {{-- PWA head tags (manual injection for the blade host — the fancyPwa Vite
+         plugin emits these files on build; FancyPwaProvider registers the SW). --}}
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#E4572E" />
+
     <title inertia>{{ config('app.name', 'Fancy') }}</title>
 
     {{-- Apply the saved/system theme before first paint to avoid a flash. --}}

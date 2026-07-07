@@ -1,5 +1,6 @@
 import { createFancyServer } from '@particle-academy/fancy-inertia/server';
 import { Toast } from '@particle-academy/react-fancy';
+import { FancyPwaProvider, InstallBanner, OfflineBanner, UpdateToast } from '@particle-academy/fancy-pwa';
 import type { ReactNode } from 'react';
 
 /**
@@ -12,7 +13,14 @@ import type { ReactNode } from 'react';
  * `INERTIA_SSR_ENABLED=true` in `.env` to use it.
  */
 const providers = (outlet: ReactNode): ReactNode => (
-    <Toast.Provider position="bottom-right">{outlet}</Toast.Provider>
+    <FancyPwaProvider options={{ swUrl: '/sw.js' }}>
+        <Toast.Provider position="bottom-right">
+            <OfflineBanner color="amber" />
+            <InstallBanner color="amber" title="Install SpinList" installLabel="Add to home screen" />
+            <UpdateToast />
+            {outlet}
+        </Toast.Provider>
+    </FancyPwaProvider>
 );
 
 createFancyServer({
