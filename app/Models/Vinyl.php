@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use Database\Factories\VinylFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['title', 'artist', 'image', 'genre', 'year', 'condition', 'color', 'rating', 'notes', 'owned'])]
 class Vinyl extends Model
 {
+    /** @use HasFactory<VinylFactory> */
+    use HasFactory;
+
     /**
      * Get the attributes that should be cast.
      *
