@@ -2,8 +2,14 @@
 
 use App\Models\User;
 
-test('welcome page loads', function () {
-    $this->get('/')->assertOk();
+test('site root redirects a guest to login', function () {
+    $this->get('/')->assertRedirect('/login');
+});
+
+test('site root redirects an authenticated user to their collection', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/')->assertRedirect('/vinyls');
 });
 
 test('login and register screens render', function () {
@@ -11,7 +17,7 @@ test('login and register screens render', function () {
     $this->get('/register')->assertOk();
 });
 
-test('users can register and land on the dashboard', function () {
+test('users can register and land on their collection', function () {
     $response = $this->post('/register', [
         'name' => 'Ada Lovelace',
         'email' => 'ada@example.test',
@@ -19,7 +25,7 @@ test('users can register and land on the dashboard', function () {
         'password_confirmation' => 'password123',
     ]);
 
-    $response->assertRedirect('/dashboard');
+    $response->assertRedirect('/vinyls');
     $this->assertAuthenticated();
     $this->assertDatabaseHas('users', ['email' => 'ada@example.test']);
 });

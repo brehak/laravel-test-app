@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -20,4 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::redirect('settings', '/settings/profile');
     Route::get('settings/profile', fn () => Inertia::render('settings/Profile'))->name('settings.profile');
     Route::get('settings/password', fn () => Inertia::render('settings/Password'))->name('settings.password');
+
+    // Permanently delete the current user's own account (password-confirmed).
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
