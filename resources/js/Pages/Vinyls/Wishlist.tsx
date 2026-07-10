@@ -5,16 +5,18 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { AddVinylModal } from './AddVinylModal';
 import {
     FilterBar,
+    type FilterState,
     NoResults,
+    type Paginated,
+    Pagination,
     RecordIllustration,
-    useServerSearch,
-    useVinylFilters,
+    useVinylQuery,
     VinylGridSkeleton,
     type Vinyl,
 } from './filters';
 import { VinylCard } from './VinylCard';
 
-type Props = { vinyls: Vinyl[]; search: string };
+type Props = FilterState & { vinyls: Paginated<Vinyl> };
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
     return (
@@ -41,47 +43,38 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     );
 }
 
-export default function Wishlist({ vinyls, search }: Props) {
+export default function Wishlist({ vinyls, genres, conditions, ...filters }: Props) {
     const [addOpen, setAddOpen] = useState(false);
 
-    // Server-side search (debounced against /vinyls/wishlist) + client-side
-    // sort/filter — the same wiring the collection uses, over wishlist items.
-    const { query, setQuery, isSearching, loading } = useServerSearch('/vinyls/wishlist', search);
+    // Server-side search + sort + genre + condition, paginated — the same wiring
+    // the collection uses, pointed at the wishlist endpoint.
     const {
+        query,
+        setQuery,
         sort,
-        setSort,
+        onSortChange,
         activeGenre,
-        setActiveGenre,
+        onGenreChange,
         activeCondition,
-        setActiveCondition,
-        genres,
-        conditions,
-        visible,
-        clearFilters,
-    } = useVinylFilters(vinyls);
+        onConditionChange,
+        loading,
+        isSearching,
+        isFiltered,
+        clearAll,
+    } = useVinylQuery('/vinyls/wishlist', { ...filters, genres, conditions });
 
-    // "Records at all" vs. "records matching the current search" — an empty
-    // `vinyls` while searching means no matches, not an empty wishlist.
-    const hasRecords = vinyls.length > 0;
-    const wishlistIsEmpty = !hasRecords && !isSearching;
+    // Truly empty only when there are no wishlist records at all AND no filter is
+    // narrowing them — a filtered-to-zero page is "no results", not empty.
+    const wishlistIsEmpty = vinyls.total === 0 && !isFiltered;
 
-    const clearAll = () => {
-        clearFilters();
-        setQuery('');
-    };
-
-    // Stats reflect the active filters, mirroring the collection page.
+    // Stats reflect the full filtered count, mirroring the collection page.
+    const total = vinyls.total;
     const genreLabel = genres.length > 0 ? `${genres.length} genre${genres.length === 1 ? '' : 's'}` : null;
-    const clientFiltered = activeGenre !== null || activeCondition !== null;
     const statsText = wishlistIsEmpty
         ? 'Records you want will collect here.'
-        : isSearching
-          ? `${visible.length} result${visible.length === 1 ? '' : 's'} for “${query.trim()}”`
-          : clientFiltered
-            ? `${visible.length} of ${vinyls.length} record${vinyls.length === 1 ? '' : 's'}`
-            : [`${vinyls.length} record${vinyls.length === 1 ? '' : 's'} you're after`, genreLabel]
-                  .filter(Boolean)
-                  .join(' · ');
+        : isFiltered
+          ? `${total} result${total === 1 ? '' : 's'}`
+          : [`${total} record${total === 1 ? '' : 's'} you're after`, genreLabel].filter(Boolean).join(' · ');
 
     return (
         <AppLayout title="Wishlist">
@@ -115,13 +108,13 @@ export default function Wishlist({ vinyls, search }: Props) {
                         onSearchChange={setQuery}
                         searchLabel="Search wishlist"
                         sort={sort}
-                        onSortChange={setSort}
+                        onSortChange={onSortChange}
                         genres={genres}
                         activeGenre={activeGenre}
-                        onGenreChange={setActiveGenre}
+                        onGenreChange={onGenreChange}
                         conditions={conditions}
                         activeCondition={activeCondition}
-                        onConditionChange={setActiveCondition}
+                        onConditionChange={onConditionChange}
                     />
                 </div>
             )}
@@ -131,12 +124,15 @@ export default function Wishlist({ vinyls, search }: Props) {
                     <VinylGridSkeleton />
                 ) : wishlistIsEmpty ? (
                     <EmptyState onAdd={() => setAddOpen(true)} />
-                ) : visible.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {visible.map((vinyl) => (
-                            <VinylCard key={vinyl.id} vinyl={vinyl} variant="wishlist" />
-                        ))}
-                    </div>
+                ) : vinyls.data.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                            {vinyls.data.map((vinyl) => (
+                                <VinylCard key={vinyl.id} vinyl={vinyl} variant="wishlist" />
+                            ))}
+                        </div>
+                        <Pagination paginator={vinyls} />
+                    </>
                 ) : (
                     <NoResults isSearching={isSearching} query={query} onClear={clearAll} />
                 )}
@@ -147,7 +143,7 @@ export default function Wishlist({ vinyls, search }: Props) {
             <AddVinylModal
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
-                existingVinyls={vinyls}
+                existingVinyls={vinyls.data}
                 owned={false}
             />
         </AppLayout>

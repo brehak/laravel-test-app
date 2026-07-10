@@ -28,9 +28,11 @@ it('shows the authenticated user their own vinyls and not other users', function
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Vinyls/Index')
-            ->has('vinyls', 1)
-            ->where('vinyls.0.id', $mine->id)
-            ->where('vinyls.0.title', 'My Record')
+            // vinyls is now a paginator; records live under `data`.
+            ->has('vinyls.data', 1)
+            ->where('vinyls.data.0.id', $mine->id)
+            ->where('vinyls.data.0.title', 'My Record')
+            ->where('vinyls.total', 1)
         );
 });
 

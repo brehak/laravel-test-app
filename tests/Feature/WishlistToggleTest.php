@@ -28,8 +28,9 @@ it('separates owned records on the index from wishlist records', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Vinyls/Index')
-            ->has('vinyls', 1)
-            ->where('vinyls.0.id', $owned->id)
+            // vinyls is now a paginator; records live under `data`.
+            ->has('vinyls.data', 1)
+            ->where('vinyls.data.0.id', $owned->id)
         );
 
     // Wishlist -> un-owned only.
@@ -38,8 +39,8 @@ it('separates owned records on the index from wishlist records', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Vinyls/Wishlist')
-            ->has('vinyls', 1)
-            ->where('vinyls.0.id', $wishlist->id)
+            ->has('vinyls.data', 1)
+            ->where('vinyls.data.0.id', $wishlist->id)
         );
 });
 

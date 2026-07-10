@@ -20,17 +20,45 @@ export type Vinyl = {
     notes: string | null;
 };
 
-/** Sort modes. "default" preserves the incoming (recently-added) order. */
-export type SortKey = 'default' | 'title' | 'artist' | 'year-new' | 'year-old' | 'rating';
+/**
+ * Laravel's length-aware paginator, as serialized into the page props. The grid
+ * reads `data`; the stats line reads `total`; the pagination controls read the
+ * page counters and `links` (which already carry the active query string via
+ * `withQueryString()`, so following them preserves search/sort/filters).
+ */
+export type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+    total: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+    links: { url: string | null; label: string; active: boolean }[];
+};
+
+/** Sort modes — values match the backend's whitelist. "recent" is the default. */
+export type SortKey = 'recent' | 'title' | 'artist' | 'year_desc' | 'year_asc' | 'rating_desc';
 
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-    { value: 'default', label: 'Recently added' },
+    { value: 'recent', label: 'Recently added' },
     { value: 'title', label: 'Title (A–Z)' },
     { value: 'artist', label: 'Artist (A–Z)' },
-    { value: 'year-new', label: 'Year (newest first)' },
-    { value: 'year-old', label: 'Year (oldest first)' },
-    { value: 'rating', label: 'Rating (highest first)' },
+    { value: 'year_desc', label: 'Year (newest first)' },
+    { value: 'year_asc', label: 'Year (oldest first)' },
+    { value: 'rating_desc', label: 'Rating (highest first)' },
 ];
+
+/** The props the server sends back describing the active filter/sort state. */
+export type FilterState = {
+    search: string;
+    sort: SortKey;
+    genre: string | null;
+    condition: string | null;
+    genres: string[];
+    conditions: string[];
+};
 
 /** Sentinel used by the genre/condition Selects to represent "no filter". */
 const ALL = 'all';
@@ -301,12 +329,13 @@ export function FilterBar({
 }
 
 /**
- * Client-side genre/condition/sort state plus the derived views over a list of
- * records. Never mutates the incoming array. Search is handled separately (it's
- * server-side and page-specific), so this hook only owns the local narrowing.
+ * Client-side genre/condition/sort state plus the derived views over a flat list
+ * of records. Never mutates the incoming array. Used by the public share page,
+ * which serves its whole (unpaginated) collection and filters in the browser —
+ * the owner's own collection/wishlist filter on the server via {@see useVinylQuery}.
  */
 export function useVinylFilters(vinyls: Vinyl[]) {
-    const [sort, setSort] = useState<SortKey>('default');
+    const [sort, setSort] = useState<SortKey>('recent');
     const [activeGenre, setActiveGenre] = useState<string | null>(null);
     const [activeCondition, setActiveCondition] = useState<string | null>(null);
 
@@ -332,82 +361,186 @@ export function useVinylFilters(vinyls: Vinyl[]) {
         if (activeGenre) filtered = filtered.filter((vinyl) => vinyl.genre?.includes(activeGenre));
         if (activeCondition) filtered = filtered.filter((vinyl) => vinyl.condition === activeCondition);
 
-        if (sort === 'default') return filtered;
+        if (sort === 'recent') return filtered;
 
         const sorted = [...filtered];
         if (sort === 'title') {
             sorted.sort((a, b) => a.title.localeCompare(b.title));
         } else if (sort === 'artist') {
             sorted.sort((a, b) => a.artist.localeCompare(b.artist));
-        } else if (sort === 'year-new') {
+        } else if (sort === 'year_desc') {
             // Newest first; records without a year sink to the bottom.
             sorted.sort((a, b) => (Number(b.year) || -Infinity) - (Number(a.year) || -Infinity));
-        } else if (sort === 'year-old') {
+        } else if (sort === 'year_asc') {
             // Oldest first; records without a year still sink to the bottom.
             sorted.sort((a, b) => (Number(a.year) || Infinity) - (Number(b.year) || Infinity));
-        } else if (sort === 'rating') {
+        } else if (sort === 'rating_desc') {
             // Highest rated first; unrated records sink to the bottom.
             sorted.sort((a, b) => (b.rating ?? -Infinity) - (a.rating ?? -Infinity));
         }
         return sorted;
     }, [vinyls, activeGenre, activeCondition, sort]);
 
-    /** Reset only the client-side controls (genre + condition). */
-    const clearFilters = () => {
+    return { sort, setSort, activeGenre, setActiveGenre, activeCondition, setActiveCondition, genres, conditions, visible };
+}
+
+/** The subset of page props a filter reload needs the server to send back. */
+const PARTIAL_PROPS = ['vinyls', 'search', 'sort', 'genre', 'condition', 'genres', 'conditions'];
+
+/**
+ * Drives all of the toolbar controls against a server-filtered, server-paginated
+ * endpoint. Search, sort, genre and condition each push their params to `url`
+ * via Inertia and the page reloads with freshly filtered, paginated results;
+ * the search term is debounced (~300ms) while the selects fire immediately. Any
+ * control change resets to page one (the request omits `page`), and every visit
+ * preserves component state and scroll so the grid swaps in place. Shared by the
+ * collection and wishlist pages, which differ only in their endpoint.
+ */
+export function useVinylQuery(url: string, state: FilterState) {
+    const [query, setQuery] = useState(state.search);
+    const [sort, setSort] = useState<SortKey>(state.sort);
+    const [activeGenre, setActiveGenre] = useState<string | null>(state.genre);
+    const [activeCondition, setActiveCondition] = useState<string | null>(state.condition);
+    // True while a filter request is in flight — drives the loading skeletons so
+    // the grid doesn't sit on stale results (preserveState keeps the old list
+    // mounted until the response lands).
+    const [loading, setLoading] = useState(false);
+
+    // Fire a filtered reload. Overrides let a control apply its brand-new value
+    // in the same tick its state setter runs (state hasn't re-rendered yet).
+    const reload = (overrides: Partial<Pick<FilterState, 'search' | 'sort' | 'genre' | 'condition'>> = {}) => {
+        const next = { search: query.trim(), sort, genre: activeGenre, condition: activeCondition, ...overrides };
+        const params: Record<string, string> = {};
+        if (next.search) params.search = next.search;
+        if (next.sort !== 'recent') params.sort = next.sort;
+        if (next.genre) params.genre = next.genre;
+        if (next.condition) params.condition = next.condition;
+
+        router.get(url, params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            only: PARTIAL_PROPS,
+            onStart: () => setLoading(true),
+            onFinish: () => setLoading(false),
+        });
+    };
+
+    // Debounce only the free-text search; skip while already in sync with the
+    // server (initial mount or a just-completed request). Trimmed compare to
+    // match the backend's echoed term.
+    useEffect(() => {
+        const trimmed = query.trim();
+        if (trimmed === state.search) return;
+        const id = setTimeout(() => reload({ search: trimmed }), 300);
+        return () => clearTimeout(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query]);
+
+    // The selects reload immediately — no debounce.
+    const onSortChange = (value: SortKey) => {
+        setSort(value);
+        reload({ sort: value });
+    };
+    const onGenreChange = (value: string | null) => {
+        setActiveGenre(value);
+        reload({ genre: value });
+    };
+    const onConditionChange = (value: string | null) => {
+        setActiveCondition(value);
+        reload({ condition: value });
+    };
+
+    const isSearching = query.trim().length > 0;
+    const isFiltered = isSearching || activeGenre !== null || activeCondition !== null;
+
+    /** Reset every control and reload the unfiltered first page. */
+    const clearAll = () => {
+        setQuery('');
+        setSort('recent');
         setActiveGenre(null);
         setActiveCondition(null);
+        reload({ search: '', sort: 'recent', genre: null, condition: null });
     };
 
     return {
+        query,
+        setQuery,
         sort,
-        setSort,
+        onSortChange,
         activeGenre,
-        setActiveGenre,
+        onGenreChange,
         activeCondition,
-        setActiveCondition,
-        genres,
-        conditions,
-        visible,
-        clearFilters,
+        onConditionChange,
+        loading,
+        isSearching,
+        isFiltered,
+        clearAll,
     };
 }
 
 /**
- * Debounced server-side search bound to a specific Inertia endpoint. Drives the
- * search input while pushing the trimmed term to `url`, which returns the
- * narrowed `vinyls`/`search` props. Shared by the collection and wishlist.
+ * Pagination controls for a paginated vinyl list. Renders nothing for a single
+ * page. Follows Laravel's `links` array — which already carries the active query
+ * string, so paging keeps the current search/sort/filters — navigating via
+ * Inertia with state/scroll preserved. Styled to match the warm dark shelf.
  */
-export function useServerSearch(url: string, search: string) {
-    const [query, setQuery] = useState(search);
-    // True while a search request is actually in flight — drives the loading
-    // skeletons so the grid doesn't sit on stale results (preserveState keeps
-    // the old list mounted until the response lands).
-    const [loading, setLoading] = useState(false);
-    const isSearching = query.trim().length > 0;
+export function Pagination({ paginator }: { paginator: Paginated<unknown> }) {
+    const { current_page, last_page, prev_page_url, next_page_url, links } = paginator;
 
-    useEffect(() => {
-        const trimmed = query.trim();
-        // Already in sync with the server (initial mount, or a just-completed
-        // request) — nothing to fetch. Compare trimmed to match the backend.
-        if (trimmed === search) return;
+    if (last_page <= 1) return null;
 
-        const id = setTimeout(() => {
-            router.get(
-                url,
-                trimmed ? { search: trimmed } : {},
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ['vinyls', 'search'],
-                    onStart: () => setLoading(true),
-                    onFinish: () => setLoading(false),
-                },
-            );
-        }, 300);
+    const go = (target: string | null) => {
+        if (!target) return;
+        router.get(target, {}, { preserveState: true, preserveScroll: true, only: PARTIAL_PROPS });
+    };
 
-        return () => clearTimeout(id);
-    }, [query, search, url]);
+    // The middle of Laravel's links array is the numbered window (with "..."
+    // gaps); the first/last entries are Previous/Next, which we render as arrows.
+    const numbered = links.filter((l) => /^\d+$/.test(l.label) || l.label === '...');
 
-    return { query, setQuery, isSearching, loading };
+    const arrow = (label: string, icon: string, target: string | null) => (
+        <Button variant="ghost" size="sm" icon={icon} disabled={!target} onClick={() => go(target)}>
+            {label}
+        </Button>
+    );
+
+    return (
+        <nav
+            aria-label="Pagination"
+            className="mt-8 flex flex-wrap items-center justify-center gap-1.5"
+        >
+            {arrow('Previous', 'chevron-left', prev_page_url)}
+
+            <div className="flex items-center gap-1">
+                {numbered.map((link, i) =>
+                    link.url === null ? (
+                        <span key={`gap-${i}`} className="px-2 text-sm text-zinc-500">
+                            …
+                        </span>
+                    ) : (
+                        <button
+                            key={link.label}
+                            type="button"
+                            onClick={() => go(link.url)}
+                            aria-current={link.active ? 'page' : undefined}
+                            className={
+                                link.active
+                                    ? 'grid h-8 min-w-8 place-items-center rounded-lg bg-amber-500 px-2 text-sm font-semibold text-zinc-950'
+                                    : 'grid h-8 min-w-8 place-items-center rounded-lg px-2 text-sm text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
+                            }
+                        >
+                            {link.label}
+                        </button>
+                    ),
+                )}
+            </div>
+
+            {arrow('Next', 'chevron-right', next_page_url)}
+
+            <Text as="span" size="xs" color="muted" className="ml-2 w-full text-center sm:ml-3 sm:w-auto">
+                Page {current_page} of {last_page}
+            </Text>
+        </nav>
+    );
 }
