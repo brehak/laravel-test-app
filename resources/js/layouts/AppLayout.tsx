@@ -1,8 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, cn, Icon } from '@particle-academy/react-fancy';
+import { Avatar, cn, Dropdown, Icon } from '@particle-academy/react-fancy';
 import { useEffect, useState, type ReactNode } from 'react';
 
-type Auth = { user: { name: string; email: string } | null };
+type User = { name: string; email: string };
+type Auth = { user: User | null };
 
 // Primary app surfaces. `exact` marks links whose path is a prefix of the
 // others (Collection at /vinyls) so it doesn't stay highlighted on the
@@ -54,6 +55,69 @@ function ThemeToggle() {
     );
 }
 
+/** First letters of the first and last word of a name — the avatar fallback. */
+function initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    const first = parts[0][0];
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
+}
+
+// Shared look for the interactive rows inside the user menu. Mirrors the kit's
+// own DropdownItem styling (rounded-lg row, warm hover) so the <Link> entries
+// and the button entries read as one consistent menu.
+const menuRow =
+    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors';
+const menuRowDefault =
+    'text-zinc-700 hover:bg-amber-500/10 hover:text-amber-700 dark:text-zinc-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-400';
+
+/**
+ * Top-right user menu: avatar + name that opens a dropdown to the settings
+ * pages and sign-out. The two settings entries are real Inertia <Link>s (so
+ * they navigate client-side, are keyboard-focusable via the kit's
+ * role="menuitem" arrow-key handling, and support open-in-new-tab); sign-out is
+ * a button because it POSTs to /logout.
+ */
+function UserMenu({ user }: { user: User }) {
+    return (
+        <Dropdown placement="bottom-end" offset={10}>
+            <Dropdown.Trigger>
+                <button
+                    type="button"
+                    aria-label="Open user menu"
+                    className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                    <Avatar fallback={initials(user.name)} size="sm" glow="achievement" />
+                    <span className="hidden max-w-[10rem] truncate sm:inline">{user.name}</span>
+                    <Icon name="chevron-down" size="xs" className="text-zinc-400" />
+                </button>
+            </Dropdown.Trigger>
+            <Dropdown.Items className="min-w-[13rem]">
+                <div className="border-b border-zinc-100 px-3 pb-2.5 pt-1.5 dark:border-zinc-800">
+                    <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</p>
+                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
+                </div>
+                <div className="pt-1">
+                    <Link href="/settings/profile" role="menuitem" className={cn(menuRow, menuRowDefault)}>
+                        <Icon name="user" size="sm" className="text-zinc-400" />
+                        Profile settings
+                    </Link>
+                    <Link href="/settings/password" role="menuitem" className={cn(menuRow, menuRowDefault)}>
+                        <Icon name="lock" size="sm" className="text-zinc-400" />
+                        Change password
+                    </Link>
+                </div>
+                <Dropdown.Separator />
+                <Dropdown.Item danger onClick={() => router.post('/logout')}>
+                    <Icon name="log-out" size="sm" className="mr-2.5" />
+                    Sign out
+                </Dropdown.Item>
+            </Dropdown.Items>
+        </Dropdown>
+    );
+}
+
 /** Authenticated app shell: top nav + sign-out + content area. */
 export function AppLayout({ title, children }: { title?: string; children: ReactNode }) {
     const { props, url } = usePage<{ auth: Auth }>();
@@ -92,12 +156,9 @@ export function AppLayout({ title, children }: { title?: string; children: React
                             })}
                         </nav>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {user && <span className="hidden text-sm text-zinc-500 sm:inline">{user.name}</span>}
+                    <div className="flex items-center gap-2">
                         <ThemeToggle />
-                        <Button variant="ghost" size="sm" onClick={() => router.post('/logout')}>
-                            Sign out
-                        </Button>
+                        {user && <UserMenu user={user} />}
                     </div>
                 </div>
             </header>

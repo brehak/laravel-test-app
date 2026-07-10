@@ -21,6 +21,9 @@ export default function Password() {
 
     return (
         <SettingsLayout title="Password">
+            <p className="-mt-1 mb-5 text-sm text-zinc-500 dark:text-zinc-400">
+                Use a long, unique password to keep your collection secure.
+            </p>
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <Input
                     label="Current password"
@@ -50,7 +53,7 @@ export default function Password() {
                     error={errors.password_confirmation}
                 />
                 <div className="flex items-center gap-3">
-                    <Button type="submit" color="violet" loading={processing}>
+                    <Button type="submit" color="amber" icon="check" loading={processing}>
                         Update password
                     </Button>
                     {recentlySuccessful && (

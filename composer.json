@@ -18,6 +18,7 @@
         "laravel/fortify": "^1.36",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
+        "particle-academy/fancy-x-files": "^0.1.1",
         "ralphjsmit/laravel-seo": "^1.8"
     },
     "require-dev": {

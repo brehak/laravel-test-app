@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "91c4fe1d8c4ba3d446cdbb22b64cfc99",
+    "content-hash": "0e6c67c6855f1c910408a040cb162926",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2966,6 +2966,72 @@
                 "source": "https://github.com/paragonie/constant_time_encoding"
             },
             "time": "2025-09-24T15:06:41+00:00"
+        },
+        {
+            "name": "particle-academy/fancy-x-files",
+            "version": "0.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Particle-Academy/fancy-x-files.git",
+                "reference": "d0faff53c86d5b147aa0b4267a9b163a23bb61b8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Particle-Academy/fancy-x-files/zipball/d0faff53c86d5b147aa0b4267a9b163a23bb61b8",
+                "reference": "d0faff53c86d5b147aa0b4267a9b163a23bb61b8",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.26",
+                "orchestra/testbench": "^9.0|^10.0|^11.0",
+                "pestphp/pest": "^3.0|^4.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "ParticleAcademy\\XFiles\\Laravel\\XFilesServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "ParticleAcademy\\XFiles\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Particle Academy",
+                    "homepage": "https://github.com/Particle-Academy"
+                }
+            ],
+            "description": "Headless manager for the well-known files every modern web app owes bots AND agents — robots.txt, .well-known/security.txt, llms.txt, humans.txt, sitemap.xml, and an agents/AI manifest. Define them once in code/config and serve them consistently. Zero runtime deps; ships a default-open robots evaluator so scrapers can honor robots honestly, and makes it hard to leak a protected path. Framework-agnostic core + Laravel adapter.",
+            "homepage": "https://github.com/Particle-Academy/fancy-x-files",
+            "keywords": [
+                "Sitemap",
+                "agents",
+                "ai",
+                "crawlability",
+                "humans-txt",
+                "laravel",
+                "llms-txt",
+                "particle-academy",
+                "robots-txt",
+                "security-txt",
+                "well-known"
+            ],
+            "support": {
+                "issues": "https://github.com/Particle-Academy/fancy-x-files/issues",
+                "source": "https://github.com/Particle-Academy/fancy-x-files"
+            },
+            "time": "2026-06-18T01:09:56+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",

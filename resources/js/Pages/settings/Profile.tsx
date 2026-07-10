@@ -19,12 +19,15 @@ export default function Profile() {
 
     return (
         <SettingsLayout title="Profile">
+            <p className="-mt-1 mb-5 text-sm text-zinc-500 dark:text-zinc-400">
+                Update your name and the email address associated with your account.
+            </p>
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <Input label="Name" required value={data.name} onValueChange={(v) => setData('name', v)} error={errors.name} />
                 <Input label="Email" type="email" required value={data.email} onValueChange={(v) => setData('email', v)} error={errors.email} />
                 <div className="flex items-center gap-3">
-                    <Button type="submit" color="violet" loading={processing}>
-                        Save
+                    <Button type="submit" color="amber" icon="check" loading={processing}>
+                        Save changes
                     </Button>
                     {recentlySuccessful && (
                         <Callout color="emerald" className="!py-1 text-sm">
