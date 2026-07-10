@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreVinylRequest;
+use App\Http\Requests\UpdateVinylRequest;
 use App\Models\Vinyl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -211,23 +213,9 @@ class VinylController extends Controller
     /**
      * Store a new vinyl in the authenticated user's collection.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreVinylRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'artist' => ['required', 'string', 'max:255'],
-            'image' => ['nullable', 'string', 'url', 'max:2048'],
-            'genre' => ['nullable', 'array'],
-            'genre.*' => ['string', 'max:255'],
-            'year' => ['nullable', 'string', 'max:255'],
-            'condition' => ['nullable', 'string', 'max:255'],
-            'color' => ['nullable', 'string', 'max:32'],
-            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-            // Optional so records can be added straight to the wishlist; when
-            // omitted the record lands in the owned collection.
-            'owned' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         // Default to owned when the client doesn't specify.
         $validated['owned'] = $validated['owned'] ?? true;
@@ -242,25 +230,11 @@ class VinylController extends Controller
     /**
      * Update a vinyl that belongs to the authenticated user.
      */
-    public function update(Request $request, Vinyl $vinyl): RedirectResponse
+    public function update(UpdateVinylRequest $request, Vinyl $vinyl): RedirectResponse
     {
-        // Reject records that don't belong to the current user.
-        abort_if($vinyl->user_id !== auth()->id(), 403);
-
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'artist' => ['required', 'string', 'max:255'],
-            'image' => ['nullable', 'string', 'url', 'max:2048'],
-            'genre' => ['nullable', 'array'],
-            'genre.*' => ['string', 'max:255'],
-            'year' => ['nullable', 'string', 'max:255'],
-            'condition' => ['nullable', 'string', 'max:255'],
-            'color' => ['nullable', 'string', 'max:32'],
-            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $vinyl->update($validated);
+        // Ownership is enforced in UpdateVinylRequest::authorize(), which 403s
+        // before we get here if the record doesn't belong to the current user.
+        $vinyl->update($request->validated());
 
         return back();
     }
