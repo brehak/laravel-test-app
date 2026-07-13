@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Button, Heading, Icon, Text } from '@particle-academy/react-fancy';
 import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -13,17 +13,21 @@ import {
     RecordIllustration,
     useVinylQuery,
     VinylGridSkeleton,
+    VinylListSkeleton,
+    type ViewMode,
+    ViewToggle,
     type Vinyl,
 } from './filters';
 import { ShareCollection } from './ShareCollection';
 import { VinylCard } from './VinylCard';
+import { VinylRow } from './VinylRow';
 import { VinylDetailModal } from './VinylDetailModal';
 
 // Re-exported for modules that still import it from here (e.g. the detail view);
 // the implementation now lives alongside the shared filter controls.
 export { conditionColor } from './filters';
 
-type Props = FilterState & { vinyls: Paginated<Vinyl>; shareUrl: string | null };
+type Props = FilterState & { vinyls: Paginated<Vinyl>; shareUrl: string | null; defaultView: ViewMode };
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
     return (
@@ -45,10 +49,14 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     );
 }
 
-export default function Index({ vinyls, genres, conditions, shareUrl, ...filters }: Props) {
+export default function Index({ vinyls, genres, conditions, shareUrl, defaultView, ...filters }: Props) {
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<Vinyl | null>(null);
     const [detailing, setDetailing] = useState<Vinyl | null>(null);
+    // Layout starts from the user's saved default_view preference; the toolbar
+    // toggle then flips it for the session (not persisted — that's a preference
+    // change, made on the settings page).
+    const [view, setView] = useState<ViewMode>(defaultView);
 
     // All of search + sort + genre + condition now filter on the server, which
     // returns this page of results. The hook drives the toolbar and reloads.
@@ -73,8 +81,10 @@ export default function Index({ vinyls, genres, conditions, shareUrl, ...filters
     const hasRecords = !collectionIsEmpty;
 
     // "Surprise Me" — pick a random record and open its detail view, with a
-    // brief cover-shuffle flourish first. Drawn from the records currently on
-    // screen (this page of results).
+    // brief cover-shuffle flourish first. The actual pick is made server-side
+    // (VinylController@surprise) across the WHOLE owned collection, since
+    // pagination means this page only holds ~24 records. The covers flashed
+    // during the flourish are just eye-candy drawn from whatever's on screen.
     const surprisePool = vinyls.data;
     const [surprising, setSurprising] = useState(false);
     const [spinCover, setSpinCover] = useState<Vinyl | null>(null);
@@ -82,35 +92,39 @@ export default function Index({ vinyls, genres, conditions, shareUrl, ...filters
     const spinTimers = useRef<number[]>([]);
 
     const surpriseMe = () => {
-        if (surprising || surprisePool.length === 0) return;
-
-        const pick = surprisePool[Math.floor(Math.random() * surprisePool.length)];
+        if (surprising) return;
         setSurprising(true);
-        setSpinCover(surprisePool[Math.floor(Math.random() * surprisePool.length)]);
 
-        // Rapidly flash a handful of random covers ("spinning"), then land on the
-        // final pick and open its detail view. ~1.3s total — quick and smooth.
-        const frames = 8;
-        const frameMs = 120;
-        let i = 0;
-        const interval = window.setInterval(() => {
-            i += 1;
-            if (i >= frames) {
+        // Rapidly flash random covers ("spinning") while we wait for the server
+        // to pick the real winner. Keeps flashing until the pick lands.
+        const flashCover = () =>
+            setSpinCover(surprisePool.length ? surprisePool[Math.floor(Math.random() * surprisePool.length)] : null);
+        flashCover();
+        const interval = window.setInterval(flashCover, 120);
+        spinTimers.current.push(interval);
+
+        // Ask the server for one random record from the entire owned collection.
+        // The pick comes back on the shared `surprise` prop (flashed, one-shot).
+        router.get('/vinyls/surprise', {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                const pick = (page.props as { surprise?: Vinyl | null }).surprise ?? null;
+                // Let the shuffle play a short beat, then reveal the pick.
+                const finish = window.setTimeout(() => {
+                    window.clearInterval(interval);
+                    setSurprising(false);
+                    setSpinCover(null);
+                    if (pick) setDetailing(pick);
+                }, 600);
+                spinTimers.current.push(finish);
+            },
+            onError: () => {
                 window.clearInterval(interval);
-                setSpinCover(pick); // settle on the winner
-                return;
-            }
-            setSpinCover(surprisePool[Math.floor(Math.random() * surprisePool.length)]);
-        }, frameMs);
-
-        // Hold on the landed cover a beat, then hand off to the detail modal.
-        const finish = window.setTimeout(() => {
-            setSurprising(false);
-            setSpinCover(null);
-            setDetailing(pick);
-        }, frames * frameMs + 380);
-
-        spinTimers.current.push(interval, finish);
+                setSurprising(false);
+                setSpinCover(null);
+            },
+        });
     };
 
     useEffect(
@@ -163,7 +177,7 @@ export default function Index({ vinyls, genres, conditions, shareUrl, ...filters
                             variant="ghost"
                             icon="dices"
                             onClick={surpriseMe}
-                            disabled={surprising || surprisePool.length === 0}
+                            disabled={surprising}
                         >
                             Surprise Me
                         </Button>
@@ -178,34 +192,49 @@ export default function Index({ vinyls, genres, conditions, shareUrl, ...filters
             {/* Show the toolbar whenever there are records to work with, or an
                 active search (so the box stays reachable when it returns nothing). */}
             {!collectionIsEmpty && (
-                <div className="mt-6">
-                    <FilterBar
-                        searchValue={query}
-                        onSearchChange={setQuery}
-                        sort={sort}
-                        onSortChange={onSortChange}
-                        genres={genres}
-                        activeGenre={activeGenre}
-                        onGenreChange={onGenreChange}
-                        conditions={conditions}
-                        activeCondition={activeCondition}
-                        onConditionChange={onConditionChange}
-                    />
+                <div className="mt-6 flex flex-wrap items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                        <FilterBar
+                            searchValue={query}
+                            onSearchChange={setQuery}
+                            sort={sort}
+                            onSortChange={onSortChange}
+                            genres={genres}
+                            activeGenre={activeGenre}
+                            onGenreChange={onGenreChange}
+                            conditions={conditions}
+                            activeCondition={activeCondition}
+                            onConditionChange={onConditionChange}
+                        />
+                    </div>
+                    <ViewToggle view={view} onChange={setView} />
                 </div>
             )}
 
             <div className="mt-6">
                 {loading ? (
-                    <VinylGridSkeleton />
+                    view === 'list' ? (
+                        <VinylListSkeleton />
+                    ) : (
+                        <VinylGridSkeleton />
+                    )
                 ) : collectionIsEmpty ? (
                     <EmptyState onAdd={() => setAddOpen(true)} />
                 ) : vinyls.data.length > 0 ? (
                     <>
-                        <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                            {vinyls.data.map((vinyl) => (
-                                <VinylCard key={vinyl.id} vinyl={vinyl} variant="collection" onEdit={setEditing} onOpen={setDetailing} />
-                            ))}
-                        </div>
+                        {view === 'list' ? (
+                            <div className="flex flex-col gap-2">
+                                {vinyls.data.map((vinyl) => (
+                                    <VinylRow key={vinyl.id} vinyl={vinyl} onEdit={setEditing} onOpen={setDetailing} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                                {vinyls.data.map((vinyl) => (
+                                    <VinylCard key={vinyl.id} vinyl={vinyl} variant="collection" onEdit={setEditing} onOpen={setDetailing} />
+                                ))}
+                            </div>
+                        )}
                         <Pagination paginator={vinyls} />
                     </>
                 ) : (

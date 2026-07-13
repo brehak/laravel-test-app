@@ -41,6 +41,9 @@ export type Paginated<T> = {
 /** Sort modes — values match the backend's whitelist. "recent" is the default. */
 export type SortKey = 'recent' | 'title' | 'artist' | 'year_desc' | 'year_asc' | 'rating_desc';
 
+/** Collection layout — grid of cards or a compact list of rows. */
+export type ViewMode = 'grid' | 'list';
+
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
     { value: 'recent', label: 'Recently added' },
     { value: 'title', label: 'Title (A–Z)' },
@@ -173,6 +176,72 @@ export function VinylGridSkeleton({ count = 10 }: { count?: number }) {
             {Array.from({ length: count }).map((_, i) => (
                 <VinylCardSkeleton key={i} />
             ))}
+        </div>
+    );
+}
+
+/** A single placeholder row matching the list view's footprint. */
+function VinylRowSkeleton() {
+    return (
+        <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-900">
+            <Skeleton shape="rect" className="h-12 w-12 shrink-0 rounded-md bg-zinc-200 dark:bg-zinc-800/80" />
+            <div className="flex-1 space-y-2">
+                <Skeleton shape="text" className="h-3.5 w-1/3 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+                <Skeleton shape="text" className="h-3 w-1/4 rounded bg-zinc-200 dark:bg-zinc-800/80" />
+            </div>
+            <Skeleton shape="rect" className="h-5 w-14 rounded-full bg-zinc-200 dark:bg-zinc-800/60" />
+        </div>
+    );
+}
+
+/** A stack of placeholder rows, laid out exactly like the real list view. */
+export function VinylListSkeleton({ count = 10 }: { count?: number }) {
+    return (
+        <div aria-hidden className="flex flex-col gap-2">
+            {Array.from({ length: count }).map((_, i) => (
+                <VinylRowSkeleton key={i} />
+            ))}
+        </div>
+    );
+}
+
+/**
+ * A two-button grid/list segmented control for the toolbar. Purely
+ * presentational — the parent owns the active {@link ViewMode}. The active
+ * segment gets the warm amber treatment used elsewhere in the toolbar.
+ */
+export function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (view: ViewMode) => void }) {
+    const options: { value: ViewMode; icon: string; label: string }[] = [
+        { value: 'grid', icon: 'layout-grid', label: 'Grid view' },
+        { value: 'list', icon: 'list', label: 'List view' },
+    ];
+
+    return (
+        <div
+            role="group"
+            aria-label="Collection view"
+            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-zinc-300 bg-white p-0.5 dark:border-zinc-800 dark:bg-zinc-900/60"
+        >
+            {options.map((opt) => {
+                const active = view === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onChange(opt.value)}
+                        aria-label={opt.label}
+                        aria-pressed={active}
+                        title={opt.label}
+                        className={
+                            active
+                                ? 'grid h-8 w-8 place-items-center rounded-md bg-amber-500 text-zinc-950'
+                                : 'grid h-8 w-8 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+                        }
+                    >
+                        <Icon name={opt.icon} size="sm" />
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -412,7 +481,11 @@ export function useVinylQuery(url: string, state: FilterState) {
         const next = { search: query.trim(), sort, genre: activeGenre, condition: activeCondition, ...overrides };
         const params: Record<string, string> = {};
         if (next.search) params.search = next.search;
-        if (next.sort !== 'recent') params.sort = next.sort;
+        // Always send the sort once the user has touched a control. The server
+        // falls back to the user's default_sort preference only when NO sort
+        // param is present (the clean initial load), so an explicit choice —
+        // including 'recent' — must be sent to override a non-recent default.
+        params.sort = next.sort;
         if (next.genre) params.genre = next.genre;
         if (next.condition) params.condition = next.condition;
 

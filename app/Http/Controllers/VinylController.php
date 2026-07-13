@@ -18,10 +18,14 @@ class VinylController extends Controller
     private const PER_PAGE = 24;
 
     /**
-     * The sort modes the client may request, mapped to their meaning. Anything
-     * outside this whitelist falls back to `recent` in {@see applySort()}.
+     * The sort modes the client may request. Anything outside this whitelist
+     * falls back to `recent` in {@see applySort()}. Public so it's the single
+     * source of truth for valid sorts — the preferences controller validates
+     * `default_sort` against it too.
+     *
+     * @var list<string>
      */
-    private const SORTS = ['recent', 'title', 'artist', 'year_desc', 'year_asc', 'rating_desc'];
+    public const SORTS = ['recent', 'title', 'artist', 'year_desc', 'year_asc', 'rating_desc'];
 
     /**
      * Display the authenticated user's vinyl collection: paginated and filtered
@@ -41,6 +45,9 @@ class VinylController extends Controller
             // The public link for this collection, or null when sharing hasn't
             // been enabled yet. Drives the "Share" control's two states.
             'shareUrl' => $user->share_slug ? route('collection.public', $user->share_slug) : null,
+            // The user's preferred initial layout (grid | list); the page's
+            // view toggle starts here and the user can flip it per-session.
+            'defaultView' => $user->preference('default_view'),
         ]);
     }
 
@@ -76,7 +83,10 @@ class VinylController extends Controller
     private function filteredCollection(Request $request, User $user, bool $owned): array
     {
         $search = trim((string) $request->query('search', ''));
-        $sort = (string) $request->query('sort', 'recent');
+        // No explicit sort in the request → fall back to the user's saved
+        // default_sort preference (which itself defaults to 'recent'), so the
+        // shelf loads in their preferred order. An explicit ?sort= always wins.
+        $sort = (string) $request->query('sort', $user->preference('default_sort'));
         $genre = trim((string) $request->query('genre', ''));
         $condition = trim((string) $request->query('condition', ''));
 
@@ -284,6 +294,29 @@ class VinylController extends Controller
             'byRating' => $byRating,
             'byColor' => $byColor,
         ]);
+    }
+
+    /**
+     * Pick ONE random record from the authenticated user's ENTIRE owned
+     * collection and hand it back so the client can open its detail view.
+     *
+     * This has to run server-side: the collection is paginated (~24 per page),
+     * so the client only ever holds the current page and a client-side "random"
+     * would never reach past it. We select across the whole owned set instead.
+     *
+     * The pick is flashed and we bounce back to wherever the user was, so the
+     * URL stays put and the shared `surprise` prop carries the record to the
+     * front-end. An empty collection flashes null; the client just ends the
+     * flourish and does nothing.
+     */
+    public function surprise(Request $request): RedirectResponse
+    {
+        $vinyl = $request->user()->vinyls()
+            ->where('owned', true)
+            ->inRandomOrder()
+            ->first();
+
+        return back()->with('surprise', $vinyl);
     }
 
     /**

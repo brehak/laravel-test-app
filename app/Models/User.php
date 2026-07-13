@@ -15,12 +15,25 @@ use Illuminate\Support\Str;
 // `share_slug` is deliberately NOT fillable — it can never be mass-assigned from
 // a request; it's minted server-side by shareSlug(). It's hidden so it never
 // leaks through default model serialization.
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'preferences'])]
 #[Hidden(['password', 'remember_token', 'share_slug'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * App-wide preference defaults, returned by {@see preference()} when a user
+     * hasn't set their own value. This is the single source of truth for how a
+     * fresh account behaves — add a new preference here and it has a sane
+     * default everywhere, no schema change needed.
+     *
+     * @var array<string, mixed>
+     */
+    public const PREFERENCE_DEFAULTS = [
+        'default_view' => 'grid',
+        'default_sort' => 'recent',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -32,7 +45,21 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // Stored as a JSON blob; hydrated to an associative array so
+            // preferences read/write like plain PHP.
+            'preferences' => 'array',
         ];
+    }
+
+    /**
+     * Read a single app preference for this user, falling back to the app-wide
+     * default (see {@see PREFERENCE_DEFAULTS}) and then to the caller's $default
+     * when the key isn't a known preference. Dot-notation is supported for any
+     * future nested preferences.
+     */
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences, $key, self::PREFERENCE_DEFAULTS[$key] ?? $default);
     }
 
     /**

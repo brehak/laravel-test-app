@@ -64,9 +64,10 @@ type VinylCardProps = {
     /**
      * Which shelf the card lives on. Only the actions differ between variants:
      * - `collection`: clickable card that opens the detail view, with hover
-     *   edit / move-to-wishlist / delete controls over the cover.
+     *   edit / delete controls over the cover.
      * - `wishlist`: a "Mark as owned" button in the body that moves the record
-     *   into the collection.
+     *   into the collection (wishlist → collection). There is deliberately no
+     *   collection → wishlist action: if it's in the collection, you own it.
      * - `public`: fully read-only — no click target, no hover controls, no
      *   actions. Used on the public shareable collection page.
      * The disc animation and card styling are identical across all three.
@@ -92,9 +93,9 @@ export function VinylCard({ vinyl, variant, onOpen, onEdit }: VinylCardProps) {
 
     const isCollection = variant === 'collection';
 
-    // Toggle the owned flag. On the collection this moves the record onto the
-    // wishlist; on the wishlist it moves it into the collection. Same endpoint,
-    // opposite direction. The list re-fetches, so the card drops away on success.
+    // Move a wishlist record into the collection by flipping its owned flag
+    // (wishlist → collection only — the collection has no move-to-wishlist
+    // action). The list re-fetches, so the card drops away on success.
     const toggleOwned = (e?: React.MouseEvent) => {
         e?.stopPropagation();
         setMoving(true);
@@ -174,8 +175,8 @@ export function VinylCard({ vinyl, variant, onOpen, onEdit }: VinylCardProps) {
                         </div>
                     )}
 
-                    {/* Edit / move-to-wishlist / delete controls — surface on hover
-                        (and focus). Collection only. */}
+                    {/* Edit / delete controls — surface on hover (and focus).
+                        Collection only. */}
                     {isCollection && (
                         <div className="absolute left-2 top-2 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
                             <button
@@ -189,16 +190,6 @@ export function VinylCard({ vinyl, variant, onOpen, onEdit }: VinylCardProps) {
                                 className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300"
                             >
                                 <Icon name="pencil" size="sm" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={toggleOwned}
-                                disabled={moving}
-                                aria-label={`Move ${vinyl.title} to wishlist`}
-                                title="Move to wishlist"
-                                className="grid h-8 w-8 place-items-center rounded-md bg-black/60 text-zinc-200 backdrop-blur transition hover:bg-black/80 hover:text-amber-300 disabled:opacity-60"
-                            >
-                                <Icon name={moving ? 'loader-2' : 'bookmark'} size="sm" className={moving ? 'animate-spin' : undefined} />
                             </button>
                             <button
                                 type="button"

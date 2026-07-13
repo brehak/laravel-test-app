@@ -6,6 +6,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 const TABS = [
     { label: 'Profile', href: '/settings/profile', icon: 'user' },
     { label: 'Password', href: '/settings/password', icon: 'lock' },
+    { label: 'App Preferences', href: '/settings/preferences', icon: 'sliders-horizontal' },
 ];
 
 /** Settings shell: the app nav + a Profile/Password sub-nav + a content card. */

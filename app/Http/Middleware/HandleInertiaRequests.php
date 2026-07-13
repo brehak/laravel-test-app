@@ -51,6 +51,10 @@ class HandleInertiaRequests extends Middleware
             ],
             // Fortify sets a session `status` after actions like the password-reset email.
             'status' => fn () => $request->session()->get('status'),
+            // One-shot random pick from VinylController@surprise, delivered as
+            // flash so it only rides along on the response right after the
+            // "Surprise Me" request. Null on every other page.
+            'surprise' => fn () => $request->session()->get('surprise'),
         ];
     }
 }

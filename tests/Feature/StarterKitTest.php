@@ -2,8 +2,10 @@
 
 use App\Models\User;
 
-test('site root redirects a guest to login', function () {
-    $this->get('/')->assertRedirect('/login');
+test('site root shows guests the branded welcome page', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Welcome'));
 });
 
 test('site root redirects an authenticated user to their collection', function () {

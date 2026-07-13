@@ -1,7 +1,7 @@
 <?php
 
-test('the site root redirects a guest to the login page', function () {
+test('the site root shows guests the branded welcome page', function () {
     $response = $this->get('/');
 
-    $response->assertRedirect('/login');
+    $response->assertOk();
 });

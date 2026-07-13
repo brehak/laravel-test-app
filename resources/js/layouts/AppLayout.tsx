@@ -107,6 +107,10 @@ function UserMenu({ user }: { user: User }) {
                         <Icon name="lock" size="sm" className="text-zinc-400" />
                         Change password
                     </Link>
+                    <Link href="/settings/preferences" role="menuitem" className={cn(menuRow, menuRowDefault)}>
+                        <Icon name="sliders-horizontal" size="sm" className="text-zinc-400" />
+                        App preferences
+                    </Link>
                 </div>
                 <Dropdown.Separator />
                 <Dropdown.Item danger onClick={() => router.post('/logout')}>
