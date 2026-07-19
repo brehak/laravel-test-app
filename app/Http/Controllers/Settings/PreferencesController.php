@@ -28,15 +28,23 @@ class PreferencesController extends Controller
         $validated = $request->validate([
             'default_view' => ['required', Rule::in(['grid', 'list'])],
             'default_sort' => ['required', Rule::in(VinylController::SORTS)],
-            'card_size' => ['required', Rule::in(['compact', 'normal', 'large'])],
-            'disc_animation' => ['required', 'boolean'],
-            'confirm_delete' => ['required', 'boolean'],
+            // The three newer preferences are optional on the wire so a partial
+            // save (e.g. only the view/sort pair) merges cleanly instead of 422ing
+            // on the keys it didn't send. The full settings form always posts all
+            // five; anything omitted simply keeps its existing stored value.
+            'card_size' => ['sometimes', Rule::in(['compact', 'normal', 'large'])],
+            'disc_animation' => ['sometimes', 'boolean'],
+            'confirm_delete' => ['sometimes', 'boolean'],
         ]);
 
         // Normalise the toggles to real booleans (validation accepts "1"/"0"
-        // etc.) so they persist as clean JSON true/false, not stringy truthy.
-        $validated['disc_animation'] = $request->boolean('disc_animation');
-        $validated['confirm_delete'] = $request->boolean('confirm_delete');
+        // etc.) so they persist as clean JSON true/false, not stringy truthy —
+        // but only for the keys actually present in this request.
+        foreach (['disc_animation', 'confirm_delete'] as $toggle) {
+            if ($request->has($toggle)) {
+                $validated[$toggle] = $request->boolean($toggle);
+            }
+        }
 
         $user = $request->user();
 

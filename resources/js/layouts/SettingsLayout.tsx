@@ -4,12 +4,13 @@ import type { ReactNode } from 'react';
 import { AppLayout } from '@/layouts/AppLayout';
 
 const TABS = [
-    { label: 'Profile', href: '/settings/profile', icon: 'user' },
-    { label: 'Password', href: '/settings/password', icon: 'lock' },
-    { label: 'App Preferences', href: '/settings/preferences', icon: 'sliders-horizontal' },
+    { label: 'Account', href: '/settings/account', icon: 'user' },
+    { label: 'Preferences', href: '/settings/preferences', icon: 'sliders-horizontal' },
+    { label: 'Sharing', href: '/settings/sharing', icon: 'share-2' },
+    { label: 'Data', href: '/settings/data', icon: 'download' },
 ];
 
-/** Settings shell: the app nav + a Profile/Password sub-nav + a content card. */
+/** Settings shell: the app nav + a tabbed sub-nav (Account/Preferences/Sharing/Data) + a content card. */
 export function SettingsLayout({ title, children }: { title: string; children: ReactNode }) {
     const { url } = usePage();
 

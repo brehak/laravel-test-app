@@ -100,17 +100,9 @@ function UserMenu({ user }: { user: User }) {
                     <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
                 </div>
                 <div className="pt-1">
-                    <Link href="/settings/profile" role="menuitem" className={cn(menuRow, menuRowDefault)}>
-                        <Icon name="user" size="sm" className="text-zinc-400" />
-                        Profile settings
-                    </Link>
-                    <Link href="/settings/password" role="menuitem" className={cn(menuRow, menuRowDefault)}>
-                        <Icon name="lock" size="sm" className="text-zinc-400" />
-                        Change password
-                    </Link>
-                    <Link href="/settings/preferences" role="menuitem" className={cn(menuRow, menuRowDefault)}>
-                        <Icon name="sliders-horizontal" size="sm" className="text-zinc-400" />
-                        App preferences
+                    <Link href="/settings/account" role="menuitem" className={cn(menuRow, menuRowDefault)}>
+                        <Icon name="settings" size="sm" className="text-zinc-400" />
+                        Settings
                     </Link>
                 </div>
                 <Dropdown.Separator />

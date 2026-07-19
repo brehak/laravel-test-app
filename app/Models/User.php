@@ -101,6 +101,29 @@ class User extends Authenticatable
     }
 
     /**
+     * Mint a fresh share slug, replacing any existing one. The old link stops
+     * resolving immediately (its slug no longer exists), which is exactly the
+     * point of "regenerate" — revoke the shared URL and hand back a new one.
+     */
+    public function regenerateShareSlug(): string
+    {
+        // forceFill because share_slug is guarded (not fillable) by design.
+        $this->forceFill(['share_slug' => static::generateUniqueShareSlug()])->save();
+
+        return $this->share_slug;
+    }
+
+    /**
+     * Turn sharing off entirely: clear the slug so GET /share/{old} 404s and the
+     * collection is private again. A later shareSlug() call mints a brand-new
+     * slug — the previous link is never resurrected.
+     */
+    public function disableSharing(): void
+    {
+        $this->forceFill(['share_slug' => null])->save();
+    }
+
+    /**
      * Generate a random slug that isn't already taken by another user. The token
      * is unguessable (so a collection can't be enumerated) and lower-cased for
      * clean, case-insensitive URLs.

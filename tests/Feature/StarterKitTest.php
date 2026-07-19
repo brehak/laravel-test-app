@@ -34,12 +34,16 @@ test('users can register and land on their collection', function () {
 
 test('dashboard and settings require auth', function () {
     $this->get('/dashboard')->assertRedirect('/login');
-    $this->get('/settings/profile')->assertRedirect('/login');
+    $this->get('/settings/account')->assertRedirect('/login');
 });
 
-test('authenticated user can view settings', function () {
+test('authenticated user can view every settings tab', function () {
     $user = User::factory()->create();
 
-    $this->actingAs($user)->get('/settings/profile')->assertOk();
-    $this->actingAs($user)->get('/settings/password')->assertOk();
+    // Bare /settings lands on the first tab.
+    $this->actingAs($user)->get('/settings')->assertRedirect('/settings/account');
+
+    foreach (['account', 'preferences', 'sharing', 'data'] as $tab) {
+        $this->actingAs($user)->get("/settings/{$tab}")->assertOk();
+    }
 });

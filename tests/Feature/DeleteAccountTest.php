@@ -32,9 +32,9 @@ it('rejects deletion with a wrong password and keeps the account', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->from(route('settings.profile'))
+        ->from(route('settings.account'))
         ->delete(route('profile.destroy'), ['password' => 'not-the-password'])
-        ->assertRedirect(route('settings.profile'))
+        ->assertRedirect(route('settings.account'))
         ->assertSessionHasErrors('password');
 
     $this->assertDatabaseHas('users', ['id' => $user->id]);
@@ -46,9 +46,9 @@ it('rejects deletion when no password is provided', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->from(route('settings.profile'))
+        ->from(route('settings.account'))
         ->delete(route('profile.destroy'), [])
-        ->assertRedirect(route('settings.profile'))
+        ->assertRedirect(route('settings.account'))
         ->assertSessionHasErrors('password');
 
     $this->assertDatabaseHas('users', ['id' => $user->id]);
