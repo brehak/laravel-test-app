@@ -31,6 +31,9 @@ Route::middleware('auth')->group(function () {
         'preferences' => [
             'default_view' => $request->user()->preference('default_view'),
             'default_sort' => $request->user()->preference('default_sort'),
+            'card_size' => $request->user()->preference('card_size'),
+            'disc_animation' => $request->user()->preference('disc_animation'),
+            'confirm_delete' => $request->user()->preference('confirm_delete'),
         ],
     ]))->name('settings.preferences');
     Route::patch('settings/preferences', [PreferencesController::class, 'update'])->name('settings.preferences.update');

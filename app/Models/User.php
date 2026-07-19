@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 // `share_slug` is deliberately NOT fillable — it can never be mass-assigned from
 // a request; it's minted server-side by shareSlug(). It's hidden so it never
 // leaks through default model serialization.
-#[Fillable(['name', 'email', 'password', 'preferences'])]
+#[Fillable(['name', 'public_name', 'email', 'password', 'preferences'])]
 #[Hidden(['password', 'remember_token', 'share_slug'])]
 class User extends Authenticatable
 {
@@ -33,6 +33,15 @@ class User extends Authenticatable
     public const PREFERENCE_DEFAULTS = [
         'default_view' => 'grid',
         'default_sort' => 'recent',
+        // How large the collection grid renders its cards, and thus how many fit
+        // per row: 'compact' (small/dense), 'normal' (current), 'large' (roomy).
+        'card_size' => 'normal',
+        // Whether the spinning/sliding vinyl disc plays behind each card. Off is
+        // for people who find the motion distracting.
+        'disc_animation' => true,
+        // Whether deleting a record asks for confirmation first. Off deletes on
+        // the first click.
+        'confirm_delete' => true,
     ];
 
     /**

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreVinylRequest;
 use App\Http\Requests\UpdateVinylRequest;
 use App\Models\User;
 use App\Models\Vinyl;
+use App\Services\MilestoneService;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ use Inertia\Response;
 class VinylController extends Controller
 {
     /** How many records per page the collection and wishlist grids show. */
-    private const PER_PAGE = 24;
+    private const PER_PAGE = 32;
 
     /**
      * The sort modes the client may request. Anything outside this whitelist
@@ -48,6 +49,11 @@ class VinylController extends Controller
             // The user's preferred initial layout (grid | list); the page's
             // view toggle starts here and the user can flip it per-session.
             'defaultView' => $user->preference('default_view'),
+            // Card-density, disc-animation and delete-confirmation preferences,
+            // read and applied by the collection grid / cards.
+            'cardSize' => $user->preference('card_size'),
+            'discAnimation' => $user->preference('disc_animation'),
+            'confirmDelete' => $user->preference('confirm_delete'),
         ]);
     }
 
@@ -294,6 +300,18 @@ class VinylController extends Controller
             'byRating' => $byRating,
             'byColor' => $byColor,
         ]);
+    }
+
+    /**
+     * Display collection milestones (achievements) for the authenticated user.
+     *
+     * The milestones are computed on demand from the user's owned records — no
+     * stored state. All the threshold logic lives in {@see MilestoneService} so
+     * this view and the (future) public profile can share it verbatim.
+     */
+    public function milestones(MilestoneService $milestones): Response
+    {
+        return Inertia::render('Vinyls/Milestones', $milestones->for(auth()->user()));
     }
 
     /**

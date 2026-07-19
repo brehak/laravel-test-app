@@ -25,6 +25,9 @@ Route::middleware('auth')->group(function () {
     Route::post('vinyls/share', [PublicCollectionController::class, 'enable'])->name('collection.share');
     // Must be registered before vinyls/{vinyl} so "stats"/"wishlist" aren't captured as an id.
     Route::get('vinyls/stats', [VinylController::class, 'stats'])->name('vinyls.stats');
+    // Computed achievements over the user's owned collection (see MilestoneService).
+    // Also before vinyls/{vinyl} so "milestones" isn't captured as a record id.
+    Route::get('vinyls/milestones', [VinylController::class, 'milestones'])->name('vinyls.milestones');
     Route::get('vinyls/wishlist', [VinylController::class, 'wishlist'])->name('vinyls.wishlist');
     // Random pick from the user's WHOLE owned collection for "Surprise Me".
     // Also before vinyls/{vinyl} so "surprise" isn't captured as a record id.

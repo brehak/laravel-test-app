@@ -20,14 +20,23 @@ class PreferencesController extends Controller
      *
      * `default_sort` is validated against {@see VinylController::SORTS}, the same
      * whitelist the collection query enforces, so a saved default can never be a
-     * sort the grid won't honour.
+     * sort the grid won't honour. `card_size` is likewise pinned to its allowed
+     * set, and the two toggles are coerced to real booleans.
      */
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'default_view' => ['required', Rule::in(['grid', 'list'])],
             'default_sort' => ['required', Rule::in(VinylController::SORTS)],
+            'card_size' => ['required', Rule::in(['compact', 'normal', 'large'])],
+            'disc_animation' => ['required', 'boolean'],
+            'confirm_delete' => ['required', 'boolean'],
         ]);
+
+        // Normalise the toggles to real booleans (validation accepts "1"/"0"
+        // etc.) so they persist as clean JSON true/false, not stringy truthy.
+        $validated['disc_animation'] = $request->boolean('disc_animation');
+        $validated['confirm_delete'] = $request->boolean('confirm_delete');
 
         $user = $request->user();
 

@@ -44,6 +44,21 @@ export type SortKey = 'recent' | 'title' | 'artist' | 'year_desc' | 'year_asc' |
 /** Collection layout — grid of cards or a compact list of rows. */
 export type ViewMode = 'grid' | 'list';
 
+/** Card density for the collection grid — drives card size and columns-per-row. */
+export type CardSize = 'compact' | 'normal' | 'large';
+
+/**
+ * Tailwind classes for the collection grid at each card size. Smaller cards pack
+ * more columns per row; larger cards fewer. `normal` is the long-standing layout,
+ * kept byte-for-byte so nothing shifts for users who don't change the setting.
+ * Shared by the real grid and its loading skeleton so both stay in lockstep.
+ */
+export const GRID_COLS_BY_CARD_SIZE: Record<CardSize, string> = {
+    compact: 'grid-cols-3 gap-x-6 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7',
+    normal: 'grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+    large: 'grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+};
+
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
     { value: 'recent', label: 'Recently added' },
     { value: 'title', label: 'Title (A–Z)' },

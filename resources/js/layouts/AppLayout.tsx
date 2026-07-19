@@ -12,6 +12,7 @@ const NAV = [
     { label: 'Collection', href: '/vinyls', exact: true },
     { label: 'Wishlist', href: '/vinyls/wishlist', exact: false },
     { label: 'Stats', href: '/vinyls/stats', exact: false },
+    { label: 'Milestones', href: '/vinyls/milestones', exact: false },
 ];
 
 /**
